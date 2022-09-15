@@ -3,6 +3,7 @@ import inspect
 
 from .information_theoretic_diffusion import ITDiffusionModel
 from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
+from diffusers import UNet2DModel
 import json
 
 NUM_CLASSES = 10 # CIFAR-10: 10, ImageNet: 1000
@@ -134,21 +135,27 @@ def create_model(
             model_config = json.load(f)
             return WrapUNet2DModel(**model_config)
     else:
-        print("Use original IDDPM model...")
-        return UNetModel(
-            in_channels=3,
-            model_channels=num_channels,
-            out_channels=(3 if not learn_sigma else 6),
-            num_res_blocks=num_res_blocks,
-            attention_resolutions=tuple(attention_ds),
-            dropout=dropout,
-            channel_mult=channel_mult,
-            num_classes=(NUM_CLASSES if class_cond else None),
-            use_checkpoint=use_checkpoint,
-            num_heads=num_heads,
-            num_heads_upsample=num_heads_upsample,
-            use_scale_shift_norm=use_scale_shift_norm,
-        )
+        if iddpm:
+            print("Use original IDDPM model...")
+            return UNetModel(
+                in_channels=3,
+                model_channels=num_channels,
+                out_channels=(3 if not learn_sigma else 6),
+                num_res_blocks=num_res_blocks,
+                attention_resolutions=tuple(attention_ds),
+                dropout=dropout,
+                channel_mult=channel_mult,
+                num_classes=(NUM_CLASSES if class_cond else None),
+                use_checkpoint=use_checkpoint,
+                num_heads=num_heads,
+                num_heads_upsample=num_heads_upsample,
+                use_scale_shift_norm=use_scale_shift_norm,
+            )
+        else:
+            print("Use original DDPM model(Hugging Face)...")
+            f = open("/home/theo/Research/checkpoints/ddpm_cifar10_32/config.json")
+            model_config = json.load(f)
+            return UNet2DModel(**model_config)
 
 def create_information_theoretic_diffusion(
     steps,

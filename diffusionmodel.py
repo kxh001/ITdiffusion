@@ -56,6 +56,22 @@ class DiffusionModel(nn.Module):
         elif mse_type == 'x':
             return mse_epsilon / t.exp(logsnr)  # Special form of x_hat leads to this simplification
 
+    def mse_test(self, batch, logsnr, mse_type='epsilon'):
+        x = batch[0].to(self.device)
+        z, eps = self.noisy_channel(x, logsnr)
+        noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
+        tList = t.linspace(0, 1000, 4000)
+        mseList = []
+        for this_t in tList:
+            eps_hat = self.model(noisy_batch[0], this_t)['sample']
+            err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
+            mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
+            if mse_type == 'epsilon':
+                mseList.append(mse_epsilon)  # integrating over logsnr cancels out snr, so we can use mse_epsilon directly
+            elif mse_type == 'x':
+                mseList.append(mse_epsilon / t.exp(logsnr))  # Special form of x_hat leads to this simplification
+        return mseList
+
     def nll(self, batch, logsnr_samples_per_x=1):
         """-log p(x) (or -log p(x|y) if y is provided) estimated for a batch."""
         nll = 0
