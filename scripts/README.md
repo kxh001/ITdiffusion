@@ -19,6 +19,8 @@
 
 For cifar_tests.py GV has been using this command from the scripts folder:
 > python cifar_tests.py --model_path /home/gregv/diffusion/models/cifar10_uncond_50M_500K.pt --data_dir /home/gregv/diffusion/data/cifar_test --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 --diffusion_steps 4000
+> 
+> python cifar_tests.py --model_path /home/gregv/ITdiffusion/models/cifar10_uncond_50M_500K.pt --data_dir /home/gregv/ITdiffusion/data/cifar_test --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 --diffusion_steps 4000 --batch_size 100 --iddpm True --wrapped True
 
 Note that for sampling, the first step is to generate 
 a schedule from the MMSE curve. 

@@ -21,12 +21,13 @@ import diffusionmodel as dm
 from utilsiddpm.utils import viz, plot_image
 from utilsiddpm import dist_util, logger
 from utilsiddpm.image_datasets import load_data, load_dataloader
-from utilsiddpm.script_util import (
-      model_and_diffusion_defaults,
-      create_model,
-      add_dict_to_argparser,
-)
 
+from utilsiddpm.script_util import (
+    model_and_diffusion_defaults,
+    create_model_and_diffusion,
+    add_dict_to_argparser,
+    args_to_dict,
+)
 
 def main():
     args = create_argparser().parse_args()
@@ -34,20 +35,29 @@ def main():
     dist_util.setup_dist()
     logger.configure()
 
-    logger.log("creating model and diffusion...")
-    model = create_model(args.image_size,
-        args.num_channels,
-        args.num_res_blocks,
-        learn_sigma=args.learn_sigma,
-        class_cond=args.class_cond,
-        use_checkpoint=args.use_checkpoint,
-        attention_resolutions=args.attention_resolutions,
-        num_heads=args.num_heads,
-        num_heads_upsample=args.num_heads_upsample,
-        use_scale_shift_norm=args.use_scale_shift_norm,
-        dropout=args.dropout,
-        wrapped=True)
+    # logger.log("creating model and diffusion...")
+    # model = create_model(args.image_size,
+    #     args.num_channels,
+    #     args.num_res_blocks,
+    #     learn_sigma=args.learn_sigma,
+    #     class_cond=args.class_cond,
+    #     use_checkpoint=args.use_checkpoint,
+    #     attention_resolutions=args.attention_resolutions,
+    #     num_heads=args.num_heads,
+    #     num_heads_upsample=args.num_heads_upsample,
+    #     use_scale_shift_norm=args.use_scale_shift_norm,
+    #     dropout=args.dropout,
+    #     wrapped=True)
+    #
+    # model.load_state_dict(
+    #     dist_util.load_state_dict(args.model_path, map_location="cpu")
+    # )
+    # model.to(dist_util.dev())
+    # model.eval()
 
+    model, _ = create_model_and_diffusion(
+        **args_to_dict(args, model_and_diffusion_defaults().keys())
+    )
     model.load_state_dict(
         dist_util.load_state_dict(args.model_path, map_location="cpu")
     )
@@ -82,7 +92,7 @@ def main():
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("Testing test_nll code")
-    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xrange=(-1,1))
+    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
     print(results)
 
     logger.log("Generating samples")
