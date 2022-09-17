@@ -1,5 +1,9 @@
 """
 Approximate the bits/dimension for an image model.
+Command: python ./scripts/test_logsnr2t_ddpm.py 
+--model_path /home/theo/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin 
+--data_dir /home/theo/Research/datasets/cifar_test/ 
+--diffusion_steps 4000 --image_size 32 --iddpm False --wrapped False
 """
 
 import argparse
@@ -58,7 +62,6 @@ def main():
     covariance = t.load('./scripts/cifar_covariance.pt' if args.image_size == 32 \
                     else './scripts/imagenet64_covariance.pt')  # Load cached spectrum for speed
     covariance = [q.to(dist_util.dev()) for q in covariance]
-    log_eigs = covariance[2]
     diffusion.dataset_info(data_train, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 

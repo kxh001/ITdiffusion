@@ -63,7 +63,14 @@ class DiffusionModel(nn.Module):
         tList = t.linspace(0, 1000, 4000)
         mseList = []
         for this_t in tList:
-            eps_hat = self.model(noisy_batch[0], this_t)['sample']
+            # if using iddpm model
+            model_output = self.model(noisy_batch[0], this_t.view(1,).to(self.device))
+            C = model_output.shape[1] // 2
+            eps_hat = t.split(model_output, C, dim=1)[0]
+
+            # if using huggingface model
+            # eps_hat = self.model(noisy_batch[0], this_t)['sample'] 
+
             err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
             mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
             if mse_type == 'epsilon':
@@ -72,7 +79,7 @@ class DiffusionModel(nn.Module):
                 mseList.append(mse_epsilon / t.exp(logsnr))  # Special form of x_hat leads to this simplification
         return mseList
 
-    def nll(self, batch, logsnr_samples_per_x=1):
+    def nll(self, batch, logsnr_samples_per_x=10):
         """-log p(x) (or -log p(x|y) if y is provided) estimated for a batch."""
         nll = 0
         for _ in range(logsnr_samples_per_x):
@@ -158,9 +165,9 @@ class DiffusionModel(nn.Module):
         for batch in dataloader:
             break
         if type(batch) == tuple or type(batch) == list:
-            data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
+            data = batch[0].to("cpu")  # assume iterator gives other things besides x in list
         else:
-            data = batch.to(self.device)
+            data = batch.to("cpu")
         print('using # samples given:', len(data))
         self.d = len(data[0].flatten())
         assert len(data) > self.d, f"Use a batch with more samples {len(data[0])} than dimensions {self.d}"
@@ -174,7 +181,7 @@ class DiffusionModel(nn.Module):
             _, eigs, self.U = t.linalg.svd(x, full_matrices=False)  # U.T diag(eigs^2/(n-1)) U = covariance
             self.log_eigs = 2 * t.log(eigs) - math.log(len(x) - 1)  # Eigs of covariance are eigs**2/(n-1)  of SVD
             # import IPython; IPython.embed()
-            # t.save((self.mu, self.U, self.log_eigs), 'imagenet64_covariance.pt')
+            # t.save((self.mu, self.U, self.log_eigs), './scripts/imagenet64_covariance.pt')
             # self.log_eigs = self.log_eigs.to(self.device)
         else:
             self.mu, self.U, self.log_eigs = covariance_spectrum
