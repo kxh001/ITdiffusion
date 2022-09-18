@@ -39,22 +39,31 @@ class DiffusionModel(nn.Module):
         eps = t.randn((len(logsnr),) + self.shape, dtype=x.dtype, device=x.device)
         return t.sqrt(t.sigmoid(logsnr)) * x + t.sqrt(t.sigmoid(-logsnr)) * eps, eps
 
-    def mse(self, batch, logsnr, mse_type='epsilon'):
+    def mse(self, batch, logsnr, mse_type='epsilon', xinterval=None, delta=None):
         """Return MSE curve either conditioned or not on y.
         x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
         so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
         And we actually reparametrize eps_hat to depend on eps(z/sqrt(1+snr), snr)
+        Options are:
+        mse_type: {"epsilon" or "x"), for error in predicting noise, or predicting data.
+        xinterval: Whether predictions should be clamped to some interval.
+        delta: If provided, round to the nearest discrete value
         """
         x = batch[0].to(self.device)
         z, eps = self.noisy_channel(x, logsnr)
         noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
-        err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
-        mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
+        x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
+        if delta is not None:
+            x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # Round to nearest discrete value
+        if xinterval is not None:
+            x_hat = t.clamp(x_hat, xinterval[0], xinterval[1])  # clamp predictions to not fall outside of range
+        err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
+        mse_x = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
         if mse_type == 'epsilon':
-            return mse_epsilon  # integrating over logsnr cancels out snr, so we can use mse_epsilon directly
+            return mse_x * t.exp(logsnr)  # Special form of x_hat, eps_hat leads to this relation
         elif mse_type == 'x':
-            return mse_epsilon / t.exp(logsnr)  # Special form of x_hat leads to this simplification
+            return mse_x
 
     def mse_test(self, batch, logsnr, mse_type='epsilon'):
         x = batch[0].to(self.device)
@@ -102,7 +111,7 @@ class DiffusionModel(nn.Module):
         return loss  # *logsnr integration, see note
 
     @t.no_grad()
-    def test_nll(self, dataloader, npoints=100, delta=None, xrange=None):
+    def test_nll(self, dataloader, npoints=100, delta=None, xinterval=None):
         """Calculate expected NLL on data at test time.  Main difference is that we can clamp the integration
         range, because negative values of MMSE gap we can switch to Gaussian decoder to get zero.
         npoints - number of points to use in integration
@@ -115,45 +124,79 @@ class DiffusionModel(nn.Module):
         results = {}  # Return multiple forms of results in a dictionary
         logsnr, w = logistic_integrate(npoints, *self.loc_scale, device=self.device, deterministic=True)
         mses = t.zeros(npoints, device='cpu')
-        mses_round = t.zeros(npoints, device='cpu')
+        mses_dequantize = t.zeros(npoints, device='cpu')
+        mses_round_xhat = t.zeros(npoints, device='cpu')
         total_samples = 0
         for batch in tqdm(dataloader):
             if type(batch) == tuple or type(batch) == list:
                 data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
             else:
                 data = batch.to(self.device)
+            data_dequantize = data + delta * (t.rand_like(data) - 0.5)
             n_samples = len(data)
             total_samples += n_samples
             print(f"done {total_samples} samples...")
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
-                this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon'))
-                mses[j] += n_samples * this_mse.cpu()
-                this_mse = t.mean(self.mse_round(data, this_logsnr_broadcast, delta, xrange, mse_type='epsilon'))
-                mses_round[j] += n_samples * this_mse.cpu()
-        mses /= total_samples  # Average
-        mses_round /= total_samples
-        results['mses'] = mses
-        results['mses_round'] = mses_round
-        results['mmse_g'] = self.mmse_g(logsnr)
 
-        # import IPython; IPython.embed()
+                # Regular MSE, clamps predictions, but does not discretize
+                this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
+                mses[j] += n_samples * this_mse.cpu()
+
+                if delta is not None:
+                    # MSE for estimator that rounds using x_hat
+                    this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
+                    mses_round_xhat[j] += n_samples * this_mse.cpu()
+
+                    # Dequantize
+                    this_mse = t.mean(self.mse(data_dequantize, this_logsnr_broadcast, mse_type='epsilon'))
+                    mses_dequantize[j] += n_samples * this_mse.cpu()
+
+        mses /= total_samples  # Average
+        mses_round_xhat /= total_samples
+        mses_dequantize /= total_samples
+        results['mses'] = mses
+        results['mses_round_xhat'] = mses_round_xhat
+        results['mses_dequantize'] = mses_dequantize
+        results['mmse_g'] = self.mmse_g(logsnr).to('cpu')
+
         results['nll (nats)'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.)).mean()
+        results['nll (nats) - dequantize'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.)).mean()
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
+        results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
         if delta is not None:
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
-            if xrange is not None:  # Upper bound on direct estimate of -log P(x) for discrete x
-                nbins = int((xrange[1] - xrange[0]) / delta)
+            results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
+            if xinterval is not None:  # Upper bound on direct estimate of -log P(x) for discrete x
+                nbins = int((xinterval[1] - xinterval[0]) / delta)
                 left_ind = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))[0][0].item()
                 left_logsnr = logsnr[left_ind]
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
 
                 right_tail = 8 * nbins**2 * self.d * t.exp(- t.exp(logsnr[-1]) * delta**2 / 8)
-                mses_min = t.minimum(mses, mses_round)
+                mses_min = t.minimum(mses, mses_round_xhat)
                 nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
                 results['nll-discrete'] = nll_discrete
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
         return results
+
+
+    def mse_old(self, batch, logsnr, mse_type='epsilon'):
+        """Return MSE curve either conditioned or not on y.
+        x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
+        so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
+        And we actually reparametrize eps_hat to depend on eps(z/sqrt(1+snr), snr)
+        """
+        x = batch[0].to(self.device)
+        z, eps = self.noisy_channel(x, logsnr)
+        noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
+        eps_hat = self.model(noisy_batch, t.exp(logsnr))
+        err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
+        mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
+        if mse_type == 'epsilon':
+            return mse_epsilon  # integrating over logsnr cancels out snr, so we can use mse_epsilon directly
+        elif mse_type == 'x':
+            return mse_epsilon / t.exp(logsnr)  # Special form of x_hat leads to this simplification
 
     @property
     def loc_scale(self):
@@ -375,18 +418,6 @@ class DiffusionModel(nn.Module):
             f.savefig('/home/gregv/diffusion/figures/info_gain.png')
 
         return schedule
-
-    def mse_round(self, batch, logsnr, delta, xrange, mse_type='epsilon'):
-        """Return MSE curve for the rounding estimator"""
-        x = batch[0].to(self.device)
-        z, eps = self.noisy_channel(x, logsnr)
-        x_hat = t.clamp(delta * t.round((z - xrange[0]) / delta) + xrange[0], xrange[0], xrange[1])
-        err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
-        mse_x = t.einsum('ij,ij->i', err, err)  # MSE for x
-        if mse_type == 'epsilon':
-            return mse_x * t.exp(logsnr)  # integrating over logsnr adds snr factor (equiv to epsilon error)
-        elif mse_type == 'x':
-            return mse_x
 
     # Methods for base model, Gaussian
     def sample_g(self, n_samples=1, match_cov=True, match_mu=False, snr=False):

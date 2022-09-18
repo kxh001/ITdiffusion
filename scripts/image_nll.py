@@ -63,7 +63,7 @@ def main():
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("evaluating...")
-    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xrange=(-1,1))
+    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
     # np.save('/home/theo/Research_Results/image_nll_test/iddpm_vlb.npy', results)
     print(results['nll-discrete (bpd)'], results['nll-discrete-limit (bpd)'])
 
