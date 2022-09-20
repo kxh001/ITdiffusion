@@ -54,9 +54,9 @@ class DiffusionModel(nn.Module):
         noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
-        if delta is not None:
+        if delta:
             x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # Round to nearest discrete value
-        if xinterval is not None:
+        if xinterval:
             x_hat = t.clamp(x_hat, xinterval[0], xinterval[1])  # clamp predictions to not fall outside of range
         err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
         mse_x = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
@@ -132,7 +132,8 @@ class DiffusionModel(nn.Module):
                 data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
             else:
                 data = batch.to(self.device)
-            data_dequantize = data + delta * (t.rand_like(data) - 0.5)
+            if delta:
+                data_dequantize = data + delta * (t.rand_like(data) - 0.5)
             n_samples = len(data)
             total_samples += n_samples
             print(f"done {total_samples} samples...")
@@ -143,7 +144,7 @@ class DiffusionModel(nn.Module):
                 this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
                 mses[j] += n_samples * this_mse.cpu()
 
-                if delta is not None:
+                if delta:
                     # MSE for estimator that rounds using x_hat
                     this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
                     mses_round_xhat[j] += n_samples * this_mse.cpu()
@@ -164,10 +165,10 @@ class DiffusionModel(nn.Module):
         results['nll (nats) - dequantize'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.)).mean()
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
-        if delta is not None:
+        if delta:
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
-            if xinterval is not None:  # Upper bound on direct estimate of -log P(x) for discrete x
+            if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
                 nbins = int((xinterval[1] - xinterval[0]) / delta)
                 left_ind = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))[0][0].item()
                 left_logsnr = logsnr[left_ind]
