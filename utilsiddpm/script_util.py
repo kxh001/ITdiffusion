@@ -162,8 +162,8 @@ def create_information_theoretic_diffusion(
     is_collect,
 ):
     return ITDiffusionModel(
-        steps = steps,
-        is_collect = is_collect,
+        # steps = steps,
+        # is_collect = is_collect,
         model = None,
     )
 

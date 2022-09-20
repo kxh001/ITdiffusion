@@ -37,7 +37,6 @@ def viz(logs, d=2):
     ax = axs[0]
     ax.plot(np.arange(niter) * epochs / niter, logs['train loss'], label='train loss')
     ax.plot(np.arange(epochs), logs['val loss'], label='val loss')
-    # ax.set_yscale('log')
     ax.legend()
 
     ax.set_ylabel('Training Loss')
@@ -49,14 +48,12 @@ def viz(logs, d=2):
 
     baseline = np.array([d / (1. + np.exp(-logsnr)) for logsnr in logsnrs])
     baseline2 = t.sigmoid(logsnrs + logs['log_eigs'].view((-1, 1))).sum(axis=0).numpy()
-    # print("logsnrs, log_eigs, baseline2: ", logsnrs, logs['log_eigs'], baseline2)
     ax = axs[1]
     ax.plot(logsnrs, baseline, label='$N(0,1)$ MMSE')
     ax.plot(logsnrs, baseline2, lw=3, label='$N(\mu,\Sigma)$ MMSE')
     ax.plot(logsnrs, mses[-1], label='Data MSE')
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon)^2]$')
     ax.set_xlabel('log SNR ($\gamma$)')
-    #ax.set_xscale('log')
     ax.legend()
 
     ax = axs[2]
@@ -66,7 +63,6 @@ def viz(logs, d=2):
     ax.set_ylabel('MMSE Gap $(\epsilon)$')
     ax.set_xlabel('log SNR ($\gamma$)')
     ax.legend()
-    #ax.set_xscale('log')
 
     fig.set_tight_layout(True)
     return fig

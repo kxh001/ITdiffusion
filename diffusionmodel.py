@@ -25,6 +25,7 @@ class DiffusionModel(nn.Module):
                     }  # store stuff for plotting, could use tensorboard for larger models
         self.loc_logsnr, self.scale_logsnr = 0., 2.  # initial location and scale for integration. Reset in data-driven way by dataset_info
         self.device = "cuda" if t.cuda.is_available() else "cpu"
+        # self.device = ("cpu")
         print(f"Using {self.device} device for DiffusionModel")
         # dtype, dimensionality, and shape for data, set when we see it in "fit"
         self.dtype, self.d, self.shape, self.left = None, None, None, None
@@ -52,6 +53,8 @@ class DiffusionModel(nn.Module):
         x = batch[0].to(self.device)
         z, eps = self.noisy_channel(x, logsnr)
         noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
+        if t.cuda.is_available():
+            t.cuda.empty_cache() # empty the cuda memory
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
         if delta is not None:
@@ -92,7 +95,7 @@ class DiffusionModel(nn.Module):
         """-log p(x) (or -log p(x|y) if y is provided) estimated for a batch."""
         nll = 0
         for _ in range(logsnr_samples_per_x):
-            logsnr, w = logistic_integrate(len(batch[0]), *self.loc_scale, device=batch[0].device)
+            logsnr, w = logistic_integrate(len(batch[0]), *self.loc_scale, device=self.device)
             mses = self.mse(batch, logsnr, mse_type='epsilon')
             nll += self.loss(mses, logsnr, w) / logsnr_samples_per_x
         return nll
@@ -127,15 +130,18 @@ class DiffusionModel(nn.Module):
         mses_dequantize = t.zeros(npoints, device='cpu')
         mses_round_xhat = t.zeros(npoints, device='cpu')
         total_samples = 0
-        for batch in tqdm(dataloader):
+        val_loss = 0
+        for batch in dataloader:
             if type(batch) == tuple or type(batch) == list:
-                data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
+                data = batch[0].to("cpu")  # assume iterator gives other things besides x in list
             else:
-                data = batch.to(self.device)
+                data = batch.to("cpu")
             data_dequantize = data + delta * (t.rand_like(data) - 0.5)
             n_samples = len(data)
             total_samples += n_samples
-            print(f"done {total_samples} samples...")
+
+            val_loss += self.nll(data).cpu() / len(dataloader)
+
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
@@ -152,9 +158,12 @@ class DiffusionModel(nn.Module):
                     this_mse = t.mean(self.mse(data_dequantize, this_logsnr_broadcast, mse_type='epsilon'))
                     mses_dequantize[j] += n_samples * this_mse.cpu()
 
+            # print(f"tested {total_samples} samples...")
+
         mses /= total_samples  # Average
         mses_round_xhat /= total_samples
         mses_dequantize /= total_samples
+
         results['mses'] = mses
         results['mses_round_xhat'] = mses_round_xhat
         results['mses_dequantize'] = mses_dequantize
@@ -169,7 +178,8 @@ class DiffusionModel(nn.Module):
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
             if xinterval is not None:  # Upper bound on direct estimate of -log P(x) for discrete x
                 nbins = int((xinterval[1] - xinterval[0]) / delta)
-                left_ind = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))[0][0].item()
+                left_ind_tmp = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))
+                left_ind = left_ind_tmp[0][0].item() if len(left_ind_tmp) > 0 else 0
                 left_logsnr = logsnr[left_ind]
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
 
@@ -178,7 +188,7 @@ class DiffusionModel(nn.Module):
                 nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
                 results['nll-discrete'] = nll_discrete
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
-        return results
+        return results, val_loss
 
 
     def mse_old(self, batch, logsnr, mse_type='epsilon'):
