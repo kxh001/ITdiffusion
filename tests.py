@@ -149,7 +149,8 @@ def test_gaussian(n_samples=10000, n_features=32):
         mci_std))
 
     print('\nTest test_nll code.')
-    results = dm.test_nll(val_dataset, npoints=100)
+    val_dl = t.utils.data.DataLoader(val_dataset, batch_size=len(val_dataset), shuffle=False)
+    results = dm.test_nll(val_dl, npoints=100)
     print(results)
     print('\nGaussian experiments complete\n\n')
 
