@@ -43,12 +43,12 @@ def main():
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=False, 
-        # subset=1000,
+        # subset=100,
     )
 
     data_test = load_dataloader(
         data_dir=data_test_dir,
-        batch_size=64,
+        batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=True,
@@ -66,8 +66,8 @@ def main():
     diffusion.dataset_info(data_train_cov, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
-    diffusion.fit(data_train, data_test, epochs=10, lr=1e-5, use_optimizer='adam', verbose=True)
-    np.save(f"/home/theo/Research_Results/fine_tune/results.npz", diffusion.results)
+    diffusion.fit(data_train, data_test, epochs=10, lr=1e-4, use_optimizer='adam', verbose=True)
+    np.save(f"/home/theo/Research_Results/fine_tune/results_all.npy", diffusion.results)
     fig = viz(diffusion.logs, d=3*args.image_size**2)
     out_path = os.path.join(f"/home/theo/Research_Results/fine_tune/", f"viz.png")
     fig.savefig(out_path)
@@ -76,7 +76,7 @@ def main():
 def create_argparser():
     defaults = dict(
         data_dir="", 
-        batch_size=8, 
+        batch_size=4, 
         model_path="", 
         is_viz=False, 
         is_collect=False,

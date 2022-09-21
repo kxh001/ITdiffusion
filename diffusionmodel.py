@@ -139,7 +139,7 @@ class DiffusionModel(nn.Module):
             total_samples += n_samples
 
             val_mses = self.mse(data, logsnr, mse_type='epsilon',xinterval=xinterval)
-            val_loss += self.loss(val_mses, logsnr, w)
+            val_loss += self.loss(val_mses, logsnr, w) / len(dataloader)
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
@@ -187,7 +187,7 @@ class DiffusionModel(nn.Module):
                 nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
                 results['nll-discrete'] = nll_discrete
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
-        return results, val_loss
+        return results, val_loss.cpu()
 
 
     def mse_old(self, batch, logsnr, mse_type='epsilon'):

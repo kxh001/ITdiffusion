@@ -2,6 +2,7 @@
 Code for Infotmation Theoretic Diffusion Model based on logisitc integrator
 """
 import math
+import numpy as np
 import time
 import torch as t
 import torch.nn as nn
@@ -59,21 +60,23 @@ class ITDiffusionModel(DiffusionModel):
 
         # Return to standard fitting paradigm
         for i in tqdm(range(epochs)):  # Main training loop
-            mean_loss = 0.
+            '''
             ### We can try various 'lr_scheduler' here ### 
             # lr decay -- multistep
-            # if i == 3:
-            #     for p in optimizer.param_groups:
-            #         p['lr'] *= 0.1
-            # if i == 6:
-            #     for p in optimizer.param_groups:
-            #         p['lr'] *= 0.1
+            if i == 3:
+                for p in optimizer.param_groups:
+                    p['lr'] *= 0.1
+            if i == 6:
+                for p in optimizer.param_groups:
+                    p['lr'] *= 0.1
 
             # lr decay -- linear
-            # if i % 5 == 0 and i > 0:
-            #     for p in optimizer.param_groups:
-            #         p['lr'] *= 0.95
+            if i % 5 == 0 and i > 0:
+                for p in optimizer.param_groups:
+                    p['lr'] *= 0.95
+            '''
 
+            mean_loss = 0.
             t0 = time.time()
             cnt = 0
             self.train()
@@ -94,6 +97,7 @@ class ITDiffusionModel(DiffusionModel):
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+                    np.save(f"/home/theo/Research_Results/fine_tune/results_epoch{i}.npy", results)
                 self.log_function(val_loss, results)
 
             if verbose:
