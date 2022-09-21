@@ -26,7 +26,7 @@ def main():
     model, _ = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    
+
     model.load_state_dict(
         dist_util.load_state_dict(args.model_path, map_location="cpu")
     )
@@ -35,10 +35,10 @@ def main():
     diffusion = dm.ITDiffusionModel(model)
 
     logger.log("creating data loader...")
-    data_train_dir = '/home/theo/Research/datasets/cifar_train'
-    data_test_dir = '/home/theo/Research/datasets/cifar_test'
+    # data_train_dir = '/home/theo/Research/datasets/cifar_train'
+    # data_test_dir = '/home/theo/Research/datasets/cifar_test'
     data_train = load_dataloader(
-        data_dir=data_train_dir,
+        data_dir=args.data_train_dir,
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
@@ -47,7 +47,7 @@ def main():
     )
 
     data_test = load_dataloader(
-        data_dir=data_test_dir,
+        data_dir=args.data_test_dir,
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
@@ -55,7 +55,7 @@ def main():
     )
 
     data_train_cov = load_data(
-        data_dir = data_train_dir,
+        data_dir = args.data_train_dir,
         batch_size = 12500, # for imagenet64, it could be a large number
         image_size=args.image_size,
         class_cond=args.class_cond,
@@ -66,7 +66,11 @@ def main():
     diffusion.dataset_info(data_train_cov, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
-    diffusion.fit(data_train, data_test, epochs=10, lr=1e-4, use_optimizer='adam', verbose=True)
+    logger.log("fine tune model...")
+    diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
+
+    logger.log("save model and results...")
+    t.save(model.state_dict(), '/media/theo/Data/checkpoint/DDPM_epoch10.pt')
     np.save(f"/home/theo/Research_Results/fine_tune/results_all.npy", diffusion.results)
     fig = viz(diffusion.logs, d=3*args.image_size**2)
     out_path = os.path.join(f"/home/theo/Research_Results/fine_tune/", f"viz.png")
@@ -75,9 +79,12 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_dir="", 
+        data_train_dir='/home/theo/Research/datasets/cifar_train',
+        data_test_dir='/home/theo/Research/datasets/cifar_test',  
         batch_size=4, 
-        model_path="", 
+        model_path="/home/theo/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin", 
+        lr=1e-5,
+        epoch=10,
         is_viz=False, 
         is_collect=False,
         iddpm = False,
