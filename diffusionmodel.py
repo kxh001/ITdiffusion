@@ -138,7 +138,8 @@ class DiffusionModel(nn.Module):
             n_samples = len(data)
             total_samples += n_samples
 
-            val_loss += self.nll(data).cpu() / len(dataloader)
+            val_mses = self.mse(data, logsnr, mse_type='epsilon',xinterval=xinterval)
+            val_loss += self.loss(val_mses, logsnr, w)
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
