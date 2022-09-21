@@ -145,16 +145,16 @@ class DiffusionModel(nn.Module):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
                 # Regular MSE, clamps predictions, but does not discretize
-                this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
+                this_mse = t.mean(self.mse([data], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
                 mses[j] += n_samples * this_mse.cpu()
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = t.mean(self.mse(data, this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
+                    this_mse = t.mean(self.mse([data], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
                     mses_round_xhat[j] += n_samples * this_mse.cpu()
 
                     # Dequantize
-                    this_mse = t.mean(self.mse(data_dequantize, this_logsnr_broadcast, mse_type='epsilon'))
+                    this_mse = t.mean(self.mse([data_dequantize], this_logsnr_broadcast, mse_type='epsilon'))
                     mses_dequantize[j] += n_samples * this_mse.cpu()
 
             # print(f"tested {total_samples} samples...")
