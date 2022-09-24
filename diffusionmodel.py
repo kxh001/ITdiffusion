@@ -123,6 +123,7 @@ class DiffusionModel(nn.Module):
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
         logsnr, w = logistic_integrate(npoints, *self.loc_scale, device=self.device, deterministic=True)
+        results['logsnr'] = logsnr.to('cpu')
         mses = t.zeros(npoints, device='cpu')
         mses_dequantize = t.zeros(npoints, device='cpu')
         mses_round_xhat = t.zeros(npoints, device='cpu')
@@ -209,7 +210,10 @@ class DiffusionModel(nn.Module):
         """Return the parameters defining a normal distribution over logsnr, inferred from data statistics."""
         return self.loc_logsnr, self.scale_logsnr
 
-    def dataset_info(self, dataloader, covariance_spectrum=None):
+    def dataset_info(self, dataloader, covariance_spectrum=None, diagonal=False):
+        """covariance_spectrum can provide precomputed spectrum to speed up frequent experiments.
+           diagonal: {False, True}  approximates covariance as diagonal, useful for very high-d data.
+        """
         print("Getting dataset statistics, including eigenvalues,")
         for batch in dataloader:
             break
@@ -224,21 +228,32 @@ class DiffusionModel(nn.Module):
         self.dtype = data[0].dtype
         self.left = (-1,) + (1,) * (len(self.shape))  # View for left multiplying a batch of samples
         x = data.flatten(start_dim=1)
-        if covariance_spectrum is None:  # May save in cache to avoid processing for every experiment
-            self.mu = x.mean(axis=0)
-            x = x - self.mu
-            _, eigs, self.U = t.linalg.svd(x, full_matrices=False)  # U.T diag(eigs^2/(n-1)) U = covariance
-            self.log_eigs = 2 * t.log(eigs) - math.log(len(x) - 1)  # Eigs of covariance are eigs**2/(n-1)  of SVD
-            # import IPython; IPython.embed()
-            # t.save((self.mu, self.U, self.log_eigs), './scripts/imagenet64_covariance.pt')
-            # self.log_eigs = self.log_eigs.to(self.device)
-        else:
+        if covariance_spectrum:  # May save in cache to avoid processing for every experiment
             self.mu, self.U, self.log_eigs = covariance_spectrum
+        else:
+            var, self.mu = t.var_mean(x, 0)
+            x = x - self.mu
+            if diagonal:
+                self.log_eigs = t.log(var)
+                self.U = None  # "U" in this diagonal approximation should be identity, but would need to be handled specially to avoid storing large matrix.
+            else:
+                _, eigs, self.U = t.linalg.svd(x, full_matrices=False)  # U.T diag(eigs^2/(n-1)) U = covariance
+                self.log_eigs = 2 * t.log(eigs) - math.log(len(x) - 1)  # Eigs of covariance are eigs**2/(n-1)  of SVD
+            # t.save((self.mu, self.U, self.log_eigs), './scripts/imagenet64_covariance.pt')  # Save like this
+
         self.logs['log_eigs'] = self.log_eigs.cpu()
+        self.log_eigs = self.log_eigs.to(self.device)
+        self.mu = self.mu.to(self.device)
+        if self.U is not None:
+            self.U = self.U.to(self.device)
 
         # Used to estimate good range for integration
         self.loc_logsnr = -self.log_eigs.mean().item()
-        self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
+        if diagonal:
+            # A heuristic, since we won't get good variance estimate from diagonal - use loc/scale from CIFAR.
+            self.loc_logsnr, self.scale_logsnr = 6.261363983154297, 3.0976245403289795
+        else:
+            self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
 
     def fit(self, dataset, val_dataset=None, epochs=10, batch_size=200, use_optimizer='adam', lr=1e-3, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
@@ -358,6 +373,93 @@ class DiffusionModel(nn.Module):
 
             if store_t and (tt + 1) % store_t == 0:
                 zs[:, (tt + 1) // store_t] = z.cpu()
+        if not store_t:
+            zs = z.cpu()  # Return final samples only
+        return zs
+
+    @t.no_grad()
+    def outlier_score(self, data, npoints=1000):
+        logsnr, w = logistic_integrate(npoints=npoints, loc=7., scale=5., clip=2., device=self.device, deterministic=True)
+        scores = [self.mmse_g_x(x, logsnr) - self.mse([x], logsnr) for x in data]
+        return [(w * s).mean() for s in scores]
+
+    @t.no_grad()
+    def sample_cold(self, schedule, n_samples=1, store_t=False, verbose=True):
+        """Generate samples from noise using cold diffusion paper idea
+        schedule - logsnr values for Langevin steps
+        n_samples - number to generate
+        info_init - whether to start with standard normal or normal with same spectrum - may require schedule change
+        temp - can control temperature, i.e. sample with a distribution raised to some power. temp=0 seeks modes
+        store_t = integer or False - output every k-th step
+        m = 1  #  Mystery factor. Should be 1 according to derivation, much better with 2.
+        """
+        n_steps = len(schedule) - 1
+        schedule = schedule.type(self.dtype)  # Match data type
+        z = t.randn((n_samples,) + self.shape, dtype=self.dtype, device=self.device)
+        if store_t:  # Store outputs on CPU, optionally over time
+            zs = t.empty((n_samples, 1 + n_steps // store_t) + self.shape, device='cpu', dtype=self.dtype)
+            zs[:, 0] = z.cpu()
+
+        for tt in range(len(schedule) - 1):
+            logsnr = schedule[tt]
+            snr = t.exp(logsnr)
+            assert schedule[tt + 1] >= schedule[tt], "Monotonically increase SNR in schedule"
+            snr_cast = snr * t.ones(len(z), dtype=z.dtype, device=z.device)
+            xhat = t.sqrt(1 + t.exp(-logsnr)) * z - self.model([z], snr_cast) * t.exp(-logsnr / 2)
+            z2, _ = self.noisy_channel(xhat, schedule[tt+1])
+            z1, _ = self.noisy_channel(xhat, schedule[tt])
+            z = z2  # z - z1 + z2
+            # super(type(model), model).forward(x, t.tensor([0.,] * 5, device='cuda'))
+
+
+            if store_t and (tt + 1) % store_t == 0:
+                zs[:, (tt + 1) // store_t] = z.cpu()
+        if not store_t:
+            zs = z.cpu()  # Return final samples only
+        return zs
+
+    def sample_bp(self, npoints=100, n_steps=1000, eta=0.001, temp=1., store_t=False, verbose=True):
+        """Generate 1 sample from noise
+        npoints - to use in approximating NLL
+        info_init - whether to start with standard normal or normal with same spectrum - may require schedule change
+        temp - can control temperature, i.e. sample with a distribution raised to some power. temp=0 seeks modes
+        store_t = integer or False - output every k-th step
+        """
+        n_samples = 1  # Requires re-write to do in parallel, but not feasible anyway because backprop on sum requries a lot of memory
+        z = t.randn((n_samples,) + self.shape, dtype=self.dtype, device=self.device)
+        z = t.autograd.Variable(z, requires_grad=True)
+
+        if store_t:  # Store outputs on CPU, optionally over time
+            zs = t.empty((n_samples, 1 + n_steps // store_t) + self.shape, device='cpu', dtype=self.dtype)
+            zs[:, 0] = z.detach().cpu()
+
+        # import IPython; IPython.embed()
+        for tt in range(n_steps):  # Langevin dynamics loop
+            # if verbose:  # SLOW: turn off for practical runs
+            #     print("-log p(x): {:0.2f}".format(self.nll([z], logsnr_samples_per_x=npoints)))
+
+            # Langevin step
+            logsnr, w = logistic_integrate(npoints, loc=7., scale=5., clip=2., device=self.device, deterministic=True)
+
+            mmse_g = (w * t.square(z).sum() * t.exp(logsnr) / t.square(1+t.exp(logsnr))).mean()
+            #mse_gap = (w * (mmse_g - self.mse([z], logsnr, mse_type='epsilon').sum(dim=0))).mean()  # TODO: mean not over batch dim ? Doesn't matter I guess
+            #grad_nll = z - 0.5 * t.autograd.grad(mse_gap, [z])[0].detach()
+            mse = (w * self.mse([z], logsnr, mse_type='epsilon')).mean()
+            print('mse', mse.detach().item())
+            grad_nll = z.data + 0.5 * t.autograd.grad(mse-mmse_g, [z])[0]
+            # grad_nll = 0.5 * t.autograd.grad(mse, [z])[0]
+
+            with t.no_grad():
+                nll0 = self.nll([z], logsnr_samples_per_x=500)
+                z_prop = z.data - eta * eta / 2 * grad_nll.detach() + temp * eta * t.randn_like(z)
+                nll1 = self.nll([z_prop], logsnr_samples_per_x=500)
+            if nll1 < nll0:
+                z.data = z_prop
+            else:
+                print(nll0, nll1, 'reject')
+
+            if store_t and (tt + 1) % store_t == 0:
+                zs[:, (tt + 1) // store_t] = z.detach().cpu()
         if not store_t:
             zs = z.cpu()  # Return final samples only
         return zs
