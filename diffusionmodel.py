@@ -138,7 +138,7 @@ class DiffusionModel(nn.Module):
             n_samples = len(data)
             total_samples += n_samples
 
-            val_loss += self.nll([data], xinterval=xinterval).cpu()
+            val_loss += self.nll([data], xinterval=xinterval).cpu() / len(dataloader)
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
