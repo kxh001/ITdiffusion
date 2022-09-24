@@ -88,12 +88,12 @@ class DiffusionModel(nn.Module):
                 mseList.append(mse_epsilon / t.exp(logsnr))  # Special form of x_hat leads to this simplification
         return mseList
 
-    def nll(self, batch, logsnr_samples_per_x=10):
+    def nll(self, batch, logsnr_samples_per_x=10, xinterval=None):
         """-log p(x) (or -log p(x|y) if y is provided) estimated for a batch."""
         nll = 0
         for _ in range(logsnr_samples_per_x):
             logsnr, w = logistic_integrate(len(batch[0]), *self.loc_scale, device=self.device)
-            mses = self.mse(batch, logsnr, mse_type='epsilon')
+            mses = self.mse(batch, logsnr, mse_type='epsilon', xinterval=xinterval)
             nll += self.loss(mses, logsnr, w) / logsnr_samples_per_x
         return nll
 
@@ -128,7 +128,7 @@ class DiffusionModel(nn.Module):
         mses_round_xhat = t.zeros(npoints, device='cpu')
         total_samples = 0
         val_loss = 0
-        for batch in dataloader:
+        for batch in tqdm(dataloader):
             if type(batch) == tuple or type(batch) == list:
                 data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
             else:
@@ -138,8 +138,7 @@ class DiffusionModel(nn.Module):
             n_samples = len(data)
             total_samples += n_samples
 
-            val_mses = self.mse(data, logsnr, mse_type='epsilon',xinterval=xinterval)
-            val_loss += self.loss(val_mses, logsnr, w) / len(dataloader)
+            val_loss += self.nll([data], xinterval=xinterval).cpu()
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
@@ -156,8 +155,6 @@ class DiffusionModel(nn.Module):
                     # Dequantize
                     this_mse = t.mean(self.mse([data_dequantize], this_logsnr_broadcast, mse_type='epsilon'))
                     mses_dequantize[j] += n_samples * this_mse.cpu()
-
-            # print(f"tested {total_samples} samples...")
 
         mses /= total_samples  # Average
         mses_round_xhat /= total_samples
@@ -178,7 +175,7 @@ class DiffusionModel(nn.Module):
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
                 nbins = int((xinterval[1] - xinterval[0]) / delta)
                 left_ind_tmp = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))
-                left_ind = left_ind_tmp[0][0].item() if len(left_ind_tmp) > 0 else 0
+                left_ind = left_ind_tmp[0][0].item() #if len(left_ind_tmp) > 0 else 0
                 left_logsnr = logsnr[left_ind]
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
 
@@ -187,7 +184,7 @@ class DiffusionModel(nn.Module):
                 nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
                 results['nll-discrete'] = nll_discrete
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
-        return results, val_loss.cpu()
+        return results, val_loss
 
 
     def mse_old(self, batch, logsnr, mse_type='epsilon'):
