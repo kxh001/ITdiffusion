@@ -641,7 +641,7 @@ class GaussianDiffusion:
                 img = out["sample"]
 
     def _vb_terms_bpd(
-        self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None
+        self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None, cont_density=False
     ):
         """
         Get a term for the variational lower-bound.
@@ -669,6 +669,9 @@ class GaussianDiffusion:
         )
         assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+        if cont_density:
+            d = np.prod(x_start.shape[-3:])  # Meant to be number of dimensions
+            decoder_nll = 1 / 2 * th.log(2 * np.pi * self.sqrt_one_minus_alphas_cumprod**2) * t.ones_like(decoder_nll)
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
@@ -768,7 +771,7 @@ class GaussianDiffusion:
         )
         return mean_flat(kl_prior) / np.log(2.0)
 
-    def calc_bpd_loop(self, model, x_start, clip_denoised=True, model_kwargs=None):
+    def calc_bpd_loop(self, model, x_start, clip_denoised=True, model_kwargs=None, cont_density=False):
         """
         Compute the entire variational lower-bound, measured in bits-per-dim,
         as well as other related quantities.
@@ -805,6 +808,7 @@ class GaussianDiffusion:
                     t=t_batch,
                     clip_denoised=clip_denoised,
                     model_kwargs=model_kwargs,
+                    cont_density=cont_density
                 )
             vb.append(out["output"])
             xstart_mse.append(mean_flat((out["pred_xstart"] - x_start) ** 2))
