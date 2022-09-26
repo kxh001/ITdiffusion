@@ -223,7 +223,8 @@ class DiffusionModel(nn.Module):
             data = batch.to("cpu")
         print('using # samples given:', len(data))
         self.d = len(data[0].flatten())
-        assert len(data) > self.d, f"Use a batch with more samples {len(data[0])} than dimensions {self.d}"
+        if not diagonal:
+            assert len(data) > self.d, f"Use a batch with more samples {len(data[0])} than dimensions {self.d}"
         self.shape = data[0].shape
         self.dtype = data[0].dtype
         self.left = (-1,) + (1,) * (len(self.shape))  # View for left multiplying a batch of samples
