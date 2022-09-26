@@ -174,13 +174,13 @@ class DiffusionModel(nn.Module):
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
-                nbins = int((xinterval[1] - xinterval[0]) / delta)
                 left_ind_tmp = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))
                 left_ind = left_ind_tmp[0][0].item() #if len(left_ind_tmp) > 0 else 0
                 left_logsnr = logsnr[left_ind]
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
 
-                right_tail = 8 * nbins**2 * self.d * t.exp(- t.exp(logsnr[-1]) * delta**2 / 8)
+                j_max = int((xinterval[1] - xinterval[0]) / delta)
+                right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * t.exp(logsnr[-1])) for j in range(1, j_max+1)])
                 mses_min = t.minimum(mses, mses_round_xhat)
                 nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
                 results['nll-discrete'] = nll_discrete
@@ -427,36 +427,40 @@ class DiffusionModel(nn.Module):
         """
         n_samples = 1  # Requires re-write to do in parallel, but not feasible anyway because backprop on sum requries a lot of memory
         z = t.randn((n_samples,) + self.shape, dtype=self.dtype, device=self.device)
+        # z = z - self.model([z], t.tensor([0.]))
         z = t.autograd.Variable(z, requires_grad=True)
 
         if store_t:  # Store outputs on CPU, optionally over time
             zs = t.empty((n_samples, 1 + n_steps // store_t) + self.shape, device='cpu', dtype=self.dtype)
             zs[:, 0] = z.detach().cpu()
 
-        # import IPython; IPython.embed()
         for tt in range(n_steps):  # Langevin dynamics loop
             # if verbose:  # SLOW: turn off for practical runs
-            #     print("-log p(x): {:0.2f}".format(self.nll([z], logsnr_samples_per_x=npoints)))
+            #     print("-log p(x): {:0.2f}".format(self.nll([z], logsnr_samples_per_x=300)))
 
             # Langevin step
-            logsnr, w = logistic_integrate(npoints, loc=7., scale=5., clip=2., device=self.device, deterministic=True)
+            grad_nll = 0.
+            av_mse = 0.
+            num_repeat = 100
+            for k in range(num_repeat):
+                logsnr, w = logistic_integrate(npoints, loc=6., scale=5.5, clip=1., device=self.device)
+                mse = (w * self.mse([z], logsnr, mse_type='epsilon')).mean()
+                grad_nll += 0.5 * t.autograd.grad(mse, [z])[0].detach() / num_repeat
+                av_mse = mse.detach() / num_repeat
+            print('mse', av_mse.item())
 
-            mmse_g = (w * t.square(z).sum() * t.exp(logsnr) / t.square(1+t.exp(logsnr))).mean()
-            #mse_gap = (w * (mmse_g - self.mse([z], logsnr, mse_type='epsilon').sum(dim=0))).mean()  # TODO: mean not over batch dim ? Doesn't matter I guess
-            #grad_nll = z - 0.5 * t.autograd.grad(mse_gap, [z])[0].detach()
-            mse = (w * self.mse([z], logsnr, mse_type='epsilon')).mean()
-            print('mse', mse.detach().item())
-            grad_nll = z.data + 0.5 * t.autograd.grad(mse-mmse_g, [z])[0]
-            # grad_nll = 0.5 * t.autograd.grad(mse, [z])[0]
+            c = 2 - 1. / (1. + math.exp(-5)) + 1. / (1. + math.exp(17))  # endpoints of integration using loc=6, scale=5.5., clip=2 above
+            grad_nll += z.data * c  # add part for tails
 
-            with t.no_grad():
-                nll0 = self.nll([z], logsnr_samples_per_x=500)
-                z_prop = z.data - eta * eta / 2 * grad_nll.detach() + temp * eta * t.randn_like(z)
-                nll1 = self.nll([z_prop], logsnr_samples_per_x=500)
-            if nll1 < nll0:
-                z.data = z_prop
-            else:
-                print(nll0, nll1, 'reject')
+            z.data = z.data - eta * eta / 2 * grad_nll + temp * eta * t.randn_like(z)
+            # with t.no_grad():
+            #     nll0 = self.nll([z], logsnr_samples_per_x=100)
+            #     z_prop = z.data - eta * eta / 2 * grad_nll + temp * eta * t.randn_like(z)
+            #     nll1 = self.nll([z_prop], logsnr_samples_per_x=100)
+            # if nll1 < nll0:
+            #     z.data = z_prop
+            # else:
+            #     print(nll0, nll1, 'reject')
 
             if store_t and (tt + 1) % store_t == 0:
                 zs[:, (tt + 1) // store_t] = z.detach().cpu()
