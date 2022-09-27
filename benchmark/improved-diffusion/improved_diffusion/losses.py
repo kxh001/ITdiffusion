@@ -75,3 +75,23 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     )
     assert log_probs.shape == x.shape
     return log_probs
+
+
+def cont_gaussian_log_likelihood(x, *, means, log_scales):
+    """
+    Compute the log-likelihood of a Gaussian distribution discretizing to a
+    given image.
+
+    :param x: the target images. It is assumed that this was uint8 values,
+              rescaled to the range [-1, 1].
+    :param means: the Gaussian mean Tensor.
+    :param log_scales: the Gaussian log stddev Tensor.
+    :return: a tensor like x of log probabilities (in nats).
+    """
+    assert x.shape == means.shape == log_scales.shape
+    centered_x = x - means
+    inv_stdv = th.exp(-log_scales)
+    A = - 0.5 * th.square(inv_stdv * centered_x)
+    B = - 0.5 * np.log(2*np.pi) - log_scales
+    log_probs = A + B
+    return log_probs

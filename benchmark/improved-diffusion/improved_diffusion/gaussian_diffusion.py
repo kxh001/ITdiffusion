@@ -12,7 +12,7 @@ import numpy as np
 import torch as th
 
 from .nn import mean_flat
-from .losses import normal_kl, discretized_gaussian_log_likelihood
+from .losses import normal_kl, discretized_gaussian_log_likelihood, cont_gaussian_log_likelihood
 
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
@@ -664,14 +664,17 @@ class GaussianDiffusion:
         )
         kl = mean_flat(kl) / np.log(2.0)
 
-        decoder_nll = -discretized_gaussian_log_likelihood(
-            x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
-        )
+        if cont_density:
+            decoder_nll = -cont_gaussian_log_likelihood(
+                x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
+            )
+        else:
+            decoder_nll = -discretized_gaussian_log_likelihood(
+                x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
+            )
+
         assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
-        if cont_density:
-            d = np.prod(x_start.shape[-3:])  # Meant to be number of dimensions
-            decoder_nll = 1 / 2 * th.log(2 * np.pi * self.sqrt_one_minus_alphas_cumprod**2) * t.ones_like(decoder_nll)
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
