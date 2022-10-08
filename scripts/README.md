@@ -1,4 +1,6 @@
-- The pre-trianed model could be downloaded at [checkpoint](https://github.com/openai/improved-diffusion).
+- The pre-trianed IDDPM model could be downloaded at [checkpoint](https://github.com/openai/improved-diffusion).
+
+- The pre-trained DDPM model is [here](https://drive.google.com/drive/folders/1G1nFv6AML_8zeElxMECkYfJnmihVcR86?usp=sharing) 
 
 - The dataset and preprocessing could be found at [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
 
