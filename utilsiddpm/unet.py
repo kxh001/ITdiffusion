@@ -529,7 +529,7 @@ class WrapUNetModel(UNetModel):
         super().__init__(*args, **kwargs)
 
     def forward(self, z, snr):
-        x = z[0]
+        x = z[0] # uncondition model 
         timestep = self.logsnr2t(th.log(snr))
         model_output = super().forward(x, timestep)
         C = model_output.shape[1] // 2
@@ -570,19 +570,19 @@ class WrapUNet2DModel(UNet2DModel):
         super().__init__(*args, **kwargs)
 
     def forward(self, z, snr):
-        x = z[0]
+        x = z[0] # uncondition model 
         timestep = self.logsnr2t(th.log(snr))
         eps_hat = super().forward(x, timestep)["sample"]
         return eps_hat
 
     def logsnr2t(self, logsnr):
+        num_diffusion_steps = 10000 # improve the timestep precision
         alphas_cumprod = th.sigmoid(logsnr)
-        betas = self.get_beta_schedule()
+        scale = 1000 / num_diffusion_steps
+        beta_start = scale * 0.0001
+        beta_end = scale * 0.02
+        betas = np.linspace(beta_start, beta_end, num_diffusion_steps, dtype=np.float64)
         alphas = 1.0 - betas
         alphabarGT = th.tensor(np.cumprod(alphas, axis=0), device=alphas_cumprod.device)
-        timestep = th.argmin(abs(alphabarGT-alphas_cumprod[0])) # only use one alphas_cumprod in the batch
-        return timestep*th.ones(alphas_cumprod.shape[0], device=alphas_cumprod.device)  # reconvert to batch
-
-    def get_beta_schedule(self, beta_start = 0.0001, beta_end = 0.02, num_diffusion_steps = 1000):
-        betas = np.linspace(beta_start, beta_end, num_diffusion_steps, dtype=np.float64)
-        return betas
+        timestep = th.argmin(abs(alphabarGT-alphas_cumprod[0])) * scale # only use one alphas_cumprod in the batch
+        return timestep * th.ones(alphas_cumprod.shape[0], device=alphas_cumprod.device)  # reconvert to batch

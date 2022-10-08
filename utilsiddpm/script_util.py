@@ -1,7 +1,8 @@
 import argparse
 import inspect
 
-from .information_theoretic_diffusion import ITDiffusionModel
+# from .information_theoretic_diffusion import ITDiffusionModel
+from diffusionmodel import DiffusionModel
 from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
 from diffusers import UNet2DModel
 import json
@@ -35,7 +36,6 @@ def model_and_diffusion_defaults():
         rescale_learned_sigmas=True,
         use_checkpoint=False,
         use_scale_shift_norm=True,
-        is_collect=False,
     )
 
 
@@ -61,7 +61,6 @@ def create_model_and_diffusion(
     rescale_learned_sigmas,
     use_checkpoint,
     use_scale_shift_norm,
-    is_collect,
 ):
     model = create_model(
         image_size,
@@ -79,8 +78,7 @@ def create_model_and_diffusion(
         iddpm=iddpm,
     )
     diffusion = create_information_theoretic_diffusion(
-        steps=diffusion_steps,
-        is_collect=is_collect,
+        model=model,
     )
     return model, diffusion
 
@@ -158,13 +156,10 @@ def create_model(
             return UNet2DModel(**model_config)
 
 def create_information_theoretic_diffusion(
-    steps,
-    is_collect,
+    model,
 ):
-    return ITDiffusionModel(
-        # steps = steps,
-        # is_collect = is_collect,
-        model = None,
+    return DiffusionModel(
+        model = model,
     )
 
 

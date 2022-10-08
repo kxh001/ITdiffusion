@@ -49,7 +49,7 @@ class DiffusionModel(nn.Module):
         xinterval: Whether predictions should be clamped to some interval.
         delta: If provided, round to the nearest discrete value
         """
-        x = batch[0].to(self.device)
+        x = batch[0].to(self.device)  # assume iterator gives other things besides x in list
         z, eps = self.noisy_channel(x, logsnr)
         noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
@@ -65,30 +65,7 @@ class DiffusionModel(nn.Module):
         elif mse_type == 'x':
             return mse_x
 
-    def mse_test(self, batch, logsnr, mse_type='epsilon'):
-        x = batch[0].to(self.device)
-        z, eps = self.noisy_channel(x, logsnr)
-        noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
-        tList = t.linspace(0, 1000, 4000)
-        mseList = []
-        for this_t in tList:
-            # if using iddpm model
-            model_output = self.model(noisy_batch[0], this_t.view(1,).to(self.device))
-            C = model_output.shape[1] // 2
-            eps_hat = t.split(model_output, C, dim=1)[0]
-
-            # if using huggingface model
-            # eps_hat = self.model(noisy_batch[0], this_t)['sample'] 
-
-            err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
-            mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
-            if mse_type == 'epsilon':
-                mseList.append(mse_epsilon)  # integrating over logsnr cancels out snr, so we can use mse_epsilon directly
-            elif mse_type == 'x':
-                mseList.append(mse_epsilon / t.exp(logsnr))  # Special form of x_hat leads to this simplification
-        return mseList
-
-    def nll(self, batch, logsnr_samples_per_x=10, xinterval=None):
+    def nll(self, batch, logsnr_samples_per_x=1, xinterval=None):
         """-log p(x) (or -log p(x|y) if y is provided) estimated for a batch."""
         nll = 0
         for _ in range(logsnr_samples_per_x):
@@ -139,7 +116,7 @@ class DiffusionModel(nn.Module):
             n_samples = len(data)
             total_samples += n_samples
 
-            val_loss += self.nll([data], xinterval=xinterval).cpu() / len(dataloader)
+            val_loss += self.nll([data], xinterval=xinterval).cpu() * n_samples
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
@@ -157,6 +134,7 @@ class DiffusionModel(nn.Module):
                     this_mse = t.mean(self.mse([data_dequantize], this_logsnr_broadcast, mse_type='epsilon'))
                     mses_dequantize[j] += n_samples * this_mse.cpu()
 
+        val_loss /= total_samples
         mses /= total_samples  # Average
         mses_round_xhat /= total_samples
         mses_dequantize /= total_samples
@@ -167,6 +145,7 @@ class DiffusionModel(nn.Module):
         results['mmse_g'] = self.mmse_g(logsnr).to('cpu')
 
         results['nll (nats)'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.)).mean()
+        # results['nll (nats)'] = self.h_g - 0.5 * (w * (self.mmse_g(logsnr) - mses.to(self.device))).mean() # nll (nats) without clipping 
         results['nll (nats) - dequantize'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.)).mean()
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
@@ -186,24 +165,6 @@ class DiffusionModel(nn.Module):
                 results['nll-discrete'] = nll_discrete
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
         return results, val_loss
-
-
-    def mse_old(self, batch, logsnr, mse_type='epsilon'):
-        """Return MSE curve either conditioned or not on y.
-        x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
-        so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
-        And we actually reparametrize eps_hat to depend on eps(z/sqrt(1+snr), snr)
-        """
-        x = batch[0].to(self.device)
-        z, eps = self.noisy_channel(x, logsnr)
-        noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
-        eps_hat = self.model(noisy_batch, t.exp(logsnr))
-        err = (eps - eps_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
-        mse_epsilon = t.einsum('ij,ij->i', err, err)  # MSE for epsilon
-        if mse_type == 'epsilon':
-            return mse_epsilon  # integrating over logsnr cancels out snr, so we can use mse_epsilon directly
-        elif mse_type == 'x':
-            return mse_epsilon / t.exp(logsnr)  # Special form of x_hat leads to this simplification
 
     @property
     def loc_scale(self):
@@ -256,7 +217,7 @@ class DiffusionModel(nn.Module):
         else:
             self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
 
-    def fit(self, dataset, val_dataset=None, epochs=10, batch_size=200, use_optimizer='adam', lr=1e-3, verbose=False):
+    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
            See CustomDataset class for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
@@ -268,72 +229,77 @@ class DiffusionModel(nn.Module):
         else:
             optimizer = t.optim.SGD(self.model.parameters(), lr=lr)
 
-        # ONLY NON-STANDARD STEP: Essentially we have to first "fit" the base model (a Gaussian), and store data stats
-        # For very high-d datasets, we will have to do this differently (Gaussian covariance is too big)
-        dataloader = t.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-        self.dataset_info(dataloader)  # Calculate/record useful stats about data - dimension/shape/eigenvalues
-
         # Return to standard fitting paradigm
-        dataloader = t.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        if val_dataset:
-            val_dataloader = t.utils.data.DataLoader(val_dataset, batch_size=batch_size)
-
         for i in range(epochs):  # Main training loop
-            mean_loss = 0.
             ### We can try various 'lr_scheduler' here ### 
             # lr decay -- multistep
-            if i == 100:
-                for p in optimizer.param_groups:
-                    p['lr'] *= 0.1
-            if i == 150:
-                for p in optimizer.param_groups:
-                    p['lr'] *= 0.1
-
-            # lr decay -- linear
-            # if i % 5 == 0 and i > 0:
+            # if i == 5:
             #     for p in optimizer.param_groups:
-            #         p['lr'] *= 0.95
+            #         p['lr'] *= 0.1
+
+            print("training ... ")
+            train_loss = 0.
             t0 = time.time()
-            for batch in dataloader:
+            total_samples = 0
+            self.train()
+            for batch in tqdm(dataloader_train):
+                num_samples = len(batch[0])
+                total_samples += num_samples
                 optimizer.zero_grad()
                 loss = self.nll(batch)
                 loss.backward()
                 optimizer.step()
-
                 # Track running statistics
-                mean_loss += loss.detach().cpu().item() / len(dataloader)
-                self.logs['train loss'].append(loss.detach().cpu())
-            iter_per_sec = len(dataloader) / (time.time() - t0)
+                train_loss += loss.detach().cpu().item() * num_samples
+            train_loss /= total_samples
+            iter_per_sec = len(dataloader_train) / (time.time() - t0)
+            if not verbose:
+              logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
+            np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
+            t.save(model.state_dict(), f'/home/theo/Research/checkpoints/model_epoch{i}.pt')
+            self.log_function(train_loss=train_loss)
 
-            if val_dataset:  # Process validation statistics once per epoch, if available
+            if dataloader_test:  # Process validation statistics once per epoch, if available
+                print("testing starts ...")
                 self.eval()
                 with t.no_grad():
-                    val_loss = 0.  # val. loss estimated same as train
-                    mse_grid = t.zeros(len(self.logs['logsnr_grid']))  # And MSEs on SNR grid, to see curves
-                    for batch in val_dataloader:
-                        val_loss += self.nll(batch).cpu() / len(val_dataloader)
+                    results, val_loss= self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+                    np.save(f"/home/theo/Research_Results/fine_tune/results_epoch{i}.npy", [results, val_loss])
+            self.log_function(val_loss=val_loss, results=results)
 
-                        # high quality MSE on snr grid
-                        for j, this_logsnr in enumerate(self.logs['logsnr_grid']):
-                            this_logsnr_broadcast = this_logsnr * t.ones(len(batch[0]), device=batch[0].device)
-                            this_mse = t.mean(self.mse(batch, this_logsnr_broadcast, mse_type='epsilon')) / len(val_dataloader)
-                            mse_grid[j] += this_mse.cpu()
-
-                self.log_function(val_loss, mse_grid)
-                self.train()
             if verbose:
-                print('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
-                      format(i, mean_loss, val_loss, iter_per_sec))
+                logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
+                      format(i, train_loss, val_loss, iter_per_sec))
+                logger.log('testing nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'.
+                    format(results['nll-discrete (bpd)'], results['nll-discrete-limit (bpd)'], results['nll-discrete-limit (bpd) - dequantize']))
 
-    def log_function(self, val_loss, mse_grid):
+    def log_function(self, train_loss=None, val_loss=None, results=None):
         """Record logs during training."""
         self.logs['logsnr_loc'].append(self.loc_logsnr)
         self.logs['logsnr_scale'].append(self.scale_logsnr)
-        self.logs['val loss'].append(val_loss)
-        self.logs['mse_curves'].append(mse_grid / t.exp(self.logs['logsnr_grid']))
-        self.logs['mse_eps_curves'].append(mse_grid)
+        if train_loss:
+            self.logs['train loss'].append(train_loss)
+        if val_loss:
+            self.logs['val loss'].append(val_loss)
+        if results:
+            self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
+            self.logs['mse_eps_curves'].append(results['mses'])
+            self.results['mses'] = results['mses']
+            self.results['mses_round_xhat'] = results['mses_round_xhat']
+            self.results['mses_dequantize'] = results['mses_dequantize']
+            self.results['mmse_g'] = results['mmse_g']
+            self.results['nll (nats)'] = results['nll (nats)']
+            self.results['nll (nats) - dequantize'] = results['nll (nats) - dequantize']
+            self.results['nll (bpd)'] = results['nll (bpd) - dequantize']
+            self.results['nll-discrete-limit (bpd)'] = results['nll-discrete-limit (bpd)']
+            self.results['nll-discrete-limit (bpd) - dequantize'] = results['nll-discrete-limit (bpd) - dequantize']
+            self.results['nll-discrete'] = results['nll-discrete']
+            self.results['nll-discrete (bpd)'] = results['nll-discrete (bpd)']
 
-    # SAMPLING RELATED METHODS
+
+    ##########################################
+    #         SAMPLING RELATED METHODS       #
+    ##########################################
     @t.no_grad()
     def sample(self, schedule, n_samples=1, info_init=False, m=1., temp=1., store_t=False, verbose=True, precondition=False):
         """Generate samples from noise
@@ -485,7 +451,7 @@ class DiffusionModel(nn.Module):
         unlikely to be as effective.
         info_init uses the non-Gaussian info only, maybe compatible with info_init in sample method.
         """
-        logsnr, w = logistic_integrate(npoints + 1, *self.loc_scale, device=self.device)
+        logsnr, w = logistic_integrate(npoints + 1, *self.loc_scale, device=self.device, clip=5)
 
         if dataloader is None:
             assert not info_init, "informative initialization requires data to estimate (non-gaussian) info gain"
@@ -532,7 +498,10 @@ class DiffusionModel(nn.Module):
 
         return schedule
 
-    # Methods for base model, Gaussian
+
+    ############################################
+    #     Methods for base model, Gaussian     #
+    ############################################
     def sample_g(self, n_samples=1, match_cov=True, match_mu=False, snr=False):
         """Generate a sample from the Gaussian with the same mean/covariance as data"""
         z = t.randn((n_samples, self.d), dtype=self.dtype, device=self.device)
@@ -599,7 +568,10 @@ class DiffusionModel(nn.Module):
         grad = t.einsum('ij,rj,jk,k,r->rk', self.U.t(), a, self.U, x, t.exp(logsnr))
         return grad.view((-1,) + self.shape)  # *logsnr integration, see note
 
-    # Things to implement
+
+    #################################
+    #      Things to implement      #
+    #################################
     def mi(self, x, y):
         """Estimate the MI from the scores, for data from the fitted model."""
         # Do... many snr for each x, y pair

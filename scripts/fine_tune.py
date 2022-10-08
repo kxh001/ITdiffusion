@@ -4,7 +4,6 @@ import numpy as np
 import torch.distributed as dist
 import torch as t
 
-import utilsiddpm.information_theoretic_diffusion as dm
 from utilsiddpm.utils import viz, plot_image
 from utilsiddpm import dist_util, logger
 from utilsiddpm.image_datasets import load_data, load_dataloader
@@ -23,7 +22,7 @@ def main():
     logger.configure()
 
     logger.log("creating model and diffusion...")
-    model, _ = create_model_and_diffusion(
+    model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
 
@@ -32,23 +31,18 @@ def main():
     )
     model.to(dist_util.dev())
 
-    diffusion = dm.ITDiffusionModel(model)
-
     logger.log("creating data loader...")
-    # data_train_dir = '/home/theo/Research/datasets/cifar_train'
-    # data_test_dir = '/home/theo/Research/datasets/cifar_test'
     data_train = load_dataloader(
         data_dir=args.data_train_dir,
-        batch_size=args.batch_size,
+        batch_size=args.train_batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=False, 
-        # subset=100,
     )
 
     data_test = load_dataloader(
         data_dir=args.data_test_dir,
-        batch_size=args.batch_size,
+        batch_size=args.test_batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=True,
@@ -56,39 +50,43 @@ def main():
 
     data_train_cov = load_data(
         data_dir = args.data_train_dir,
-        batch_size = 12500, # for imagenet64, it could be a large number
+        batch_size = 12500, # for cifar10, it could be a small number
         image_size=args.image_size,
         class_cond=args.class_cond,
     )
     logger.log("calculate integral bound...")
-    covariance = t.load('./scripts/cifar_covariance.pt')# Load cached spectrum for speed
-    covariance = [q.to(dist_util.dev()) for q in covariance]
-    diffusion.dataset_info(data_train_cov, covariance_spectrum=covariance)
+    if args.diagonal:
+        diffusion.dataset_info(data_train_cov, diagonal=args.diagonal)
+    else:
+        covariance = t.load('./scripts/cifar_covariance.pt')  # Load cached spectrum for speed
+        covariance = [q.to(dist_util.dev()) for q in covariance]
+        diffusion.dataset_info(data_train_cov, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
+
     logger.log("fine tune model...")
+    # diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
     diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
 
-    logger.log("save model and results...")
-    t.save(model.state_dict(), '/media/theo/Data/checkpoint/DDPM_epoch10.pt')
+    logger.log("save results...")
     np.save(f"/home/theo/Research_Results/fine_tune/results_all.npy", diffusion.results)
-    fig = viz(diffusion.logs, d=3*args.image_size**2)
-    out_path = os.path.join(f"/home/theo/Research_Results/fine_tune/", f"viz.png")
-    fig.savefig(out_path)
-    
+    np.save(f"/home/theo/Research_Results/fine_tune/train_loss_all.npy", diffusion.logs['train loss'])
+    np.save(f"/home/theo/Research_Results/fine_tune/test_loss_all.npy", diffusion.logs['val loss'])
 
 def create_argparser():
     defaults = dict(
         data_train_dir='/home/theo/Research/datasets/cifar_train',
         data_test_dir='/home/theo/Research/datasets/cifar_test',  
-        batch_size=4, 
-        model_path="/home/theo/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin", 
-        lr=1e-5,
+        train_batch_size=128, 
+        test_batch_size=256,
+        model_path="/home/theo/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt", 
+        covar_path='/home/theo/Research/ITD/diffusion/covariance/cifar_covariance.pt', 
+        lr =2e-4,
         epoch=10,
-        is_viz=False, 
-        is_collect=False,
-        iddpm = False,
+        iddpm = True,
         wrapped = True,
+        class_cond = False,
+        diagonal = False,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
