@@ -2,20 +2,26 @@
 
 - The dataset and preprocessing could be found at [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
 
-- You may use the following command to execute the test program:
+- The following commands are used to run image_nll.py:
 
 1. IDDPM + CIFAR10 + vlb:
 >python ./scripts/image_nll.py --model_path /home/theo/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt --data_dir /home/theo/Research/datasets/cifar_test/ --diffusion_steps 4000 --iddpm True --wrapped True --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
 
-2. IDDPM + CIFAR10 + hybrid:
->python ./scripts/image_nll.py --model_path /home/theo/Research/checkpoints/iddpm/cifar10_uncond_50M_500K.pt --data_dir /home/theo/Research/datasets/cifar_test/ --diffusion_steps 4000 --iddpm True --wrapped True --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
-  
-3. IDDPM + Imagenet64 + vlb:
->python ./scripts/image_nll.py --model_path /home/theo/Research/checkpoints/iddpm/imagenet64_uncond_vlb_100M_1500K.pt --data_dir /home/theo/Research/datasets/Imagenet64_val/image --diffusion_steps 4000 --iddpm True --wrapped True --image_size 64 --num_channels 128 --num_res_blocks 3 --learn_sigma True
-
-4. DDPM + CIFAR10:
+2. DDPM + CIFAR10:
 >python ./scripts/image_nll.py --model_path /home/theo/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin --data_dir /home/theo/Research/datasets/cifar_test/ --diffusion_steps 4000 --iddpm False --wrapped True --image_size 32
 
+- The following commands are used to run fine_tune.py
+1. IDDPM + CIFAR10 + vlb:
+> python ./scripts/fine_tune.py 
+--data_train_dir /home/theo/Research/datasets/cifar_train --data_test_dir /home/theo/Research/datasets/cifar_test
+--model_path /home/theo/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt
+--covar_path /home/theo/Research/ITD/diffusion/covariance/cifar_covariance.pt
+--image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 --iddpm True --wrapped True
+--train_batch_size 128 --test_batch_size 256 --lr 1e-4 --epoch 5
+
+4. DDPM + CIFAR10:
+> python ./scripts/fine_tune.py --data_train_dir /home/theo/Research/datasets/cifar_train --data_test_dir /home/theo/Research/datasets/cifar_test --model_path /home/theo/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin --covar_path /home/theo/Research/ITD/diffusion/covariance/cifar_covariance.pt --iddpm False --wrapped True --image_size 32 --train_batch_size 128 --test_batch_size 256 --lr 2e-4 --epoch 5
+  
 
 For cifar_tests.py GV has been using this command from the scripts folder:
 > python cifar_tests.py --model_path /home/gregv/diffusion/models/cifar10_uncond_50M_500K.pt --data_dir /home/gregv/diffusion/data/cifar_test --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 --diffusion_steps 4000
