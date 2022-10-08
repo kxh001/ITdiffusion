@@ -51,7 +51,7 @@ class DiffusionModel(nn.Module):
         """
         x = batch[0].to(self.device)  # assume iterator gives other things besides x in list
         z, eps = self.noisy_channel(x, logsnr)
-        noisy_batch = [z, ] + [batch[1:]]  # batch may include conditioning on y
+        noisy_batch = [z, ] + batch[1:]  # batch may include conditioning on y
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
         if delta:
@@ -107,31 +107,28 @@ class DiffusionModel(nn.Module):
         total_samples = 0
         val_loss = 0
         for batch in tqdm(dataloader):
-            if type(batch) == tuple or type(batch) == list:
-                data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
-            else:
-                data = batch.to(self.device)
+            data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
             if delta:
                 data_dequantize = data + delta * (t.rand_like(data) - 0.5)
             n_samples = len(data)
             total_samples += n_samples
 
-            val_loss += self.nll([data], xinterval=xinterval).cpu() * n_samples
+            val_loss += self.nll([data, ] + batch[1:], xinterval=xinterval).cpu() * n_samples
 
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
                 # Regular MSE, clamps predictions, but does not discretize
-                this_mse = t.mean(self.mse([data], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
+                this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
                 mses[j] += n_samples * this_mse.cpu()
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = t.mean(self.mse([data], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
+                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
                     mses_round_xhat[j] += n_samples * this_mse.cpu()
 
                     # Dequantize
-                    this_mse = t.mean(self.mse([data_dequantize], this_logsnr_broadcast, mse_type='epsilon'))
+                    this_mse = t.mean(self.mse([data_dequantize] + batch[1:], this_logsnr_broadcast, mse_type='epsilon'))
                     mses_dequantize[j] += n_samples * this_mse.cpu()
 
         val_loss /= total_samples
@@ -178,10 +175,7 @@ class DiffusionModel(nn.Module):
         print("Getting dataset statistics, including eigenvalues,")
         for batch in dataloader:
             break
-        if type(batch) == tuple or type(batch) == list:
-            data = batch[0].to("cpu")  # assume iterator gives other things besides x in list
-        else:
-            data = batch.to("cpu")
+        data = batch[0].to("cpu")  # assume iterator gives other things besides x in list
         print('using # samples given:', len(data))
         self.d = len(data[0].flatten())
         if not diagonal:
