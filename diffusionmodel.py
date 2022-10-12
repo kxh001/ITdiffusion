@@ -3,12 +3,13 @@ Code for Diffusion model class
 """
 import math
 import time
+import numpy as np
 import torch as t
 import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
 from utils import logistic_integrate
-
+from utilsiddpm import logger
 
 class DiffusionModel(nn.Module):
     """Base class diffusion model for x, with optional conditional info, y.
@@ -100,6 +101,7 @@ class DiffusionModel(nn.Module):
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
         logsnr, w = logistic_integrate(npoints, *self.loc_scale, device=self.device, deterministic=True)
+        # determinstic = False // change npoints
         results['logsnr'] = logsnr.to('cpu')
         mses = t.zeros(npoints, device='cpu')
         mses_dequantize = t.zeros(npoints, device='cpu')
@@ -224,7 +226,7 @@ class DiffusionModel(nn.Module):
             optimizer = t.optim.SGD(self.model.parameters(), lr=lr)
 
         # Return to standard fitting paradigm
-        for i in range(epochs):  # Main training loop
+        for i in range(1, epochs+1):  # Main training loop
             ### We can try various 'lr_scheduler' here ### 
             # lr decay -- multistep
             # if i == 5:
@@ -249,17 +251,17 @@ class DiffusionModel(nn.Module):
             iter_per_sec = len(dataloader_train) / (time.time() - t0)
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
-            np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
-            t.save(model.state_dict(), f'/home/theo/Research/checkpoints/model_epoch{i}.pt')
+            # np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
+            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/model_epoch{i}.pt')
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
-                print("testing starts ...")
+                print("testing ...")
                 self.eval()
                 with t.no_grad():
-                    results, val_loss= self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
                     np.save(f"/home/theo/Research_Results/fine_tune/results_epoch{i}.npy", [results, val_loss])
-            self.log_function(val_loss=val_loss, results=results)
+                self.log_function(val_loss=val_loss, results=results)
 
             if verbose:
                 logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
