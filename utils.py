@@ -86,19 +86,15 @@ def trunc_normal_integrate(npoints, loc, scale, clip=3, device='cpu'):
     return a, w
 
 
-def logistic_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False):
+def logistic_integrate(npoints, loc, scale, clip=4., device='cpu'):
     """Return sample point and weights for integration, using
     a truncated logistic distribution as the base, and importance weights.
     Sample points are low discrepancy, as in Variational Diffusion Models paper.
     """
     loc, scale, clip = t.tensor(loc, device=device), t.tensor(scale, device=device), t.tensor(clip, device=device)
 
-    # Low Discrepancy log SNR samples, from a logistic distribution with mean and std given by arguments
-    if deterministic:
-        offset = 0.5 / npoints
-    else:
-        offset = np.random.random() / npoints
-    ps = t.arange(offset, 1., 1. / npoints, dtype=loc.dtype, device=device)  # Random, evenly spaced quantiles
+    # IID samples from uniform, use inverse CDF to transform to target distribution
+    ps = t.rand(npoints, dtype=loc.dtype, device=device)
     ps = t.sigmoid(-clip) + (t.sigmoid(clip) - t.sigmoid(-clip)) * ps  # Scale quantiles to clip
     logsnr = loc + scale * t.logit(ps)  # Using quantile function for logistic distribution
 

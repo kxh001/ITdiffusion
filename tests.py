@@ -48,7 +48,8 @@ def test_gaussian(n_samples=10000, n_features=32):
     gt_net.to(device)
     dm = DiffusionModel(gt_net)
     # there are no params to fit, but we run it once just to populate validation stats in train loop
-    dm.fit(dataset, val_dataset, epochs=1, lr=1e-2, batch_size=500, verbose=False)
+    val_dl = t.utils.data.DataLoader(val_dataset, batch_size=len(val_dataset), shuffle=False)
+    dm.fit(dataset, val_dl, epochs=1, lr=1e-2, verbose=False)
     fig = viz(dm.logs, d=n_features)
     fig.savefig('figures/gauss_test_curves.png')
 
@@ -183,31 +184,31 @@ def test_tn_integrate():
     print('\nIntegration test complete\n')
 
 
-def test_logistic_integrate(deterministic=False):
+def test_logistic_integrate(npoints=100, deterministic=False):
     """Test numerically integrating some functions with known integral, f(a)"""
     print('\nIntegration test with logistic integrator\n')
 
-    a, w = logistic_integrate(1000, 0., 1., device=device, deterministic=deterministic)
+    a, w = logistic_integrate(npoints, 0., 1., device=device, deterministic=deterministic)
     rv = t.distributions.Normal(0., 1.)
     integrand = t.exp(rv.log_prob(a)) * w
     print("integrate N(0,1) ~ 1 w/ correct loc/scale. {:.3f} +- {:.3f} / sqrt(n)".format(integrand.mean(), integrand.std()))
 
-    a, w = logistic_integrate(1000, 1., 3., device=device, deterministic=deterministic)
+    a, w = logistic_integrate(npoints, 1., 3., device=device, deterministic=deterministic)
     rv = t.distributions.Normal(1., 3.)
     integrand = t.exp(rv.log_prob(a)) * w
     print("integrate N(1,3) ~ 1 w/ correct loc/scale. {:.3f} +- {:.3f} / sqrt(n)".format(integrand.mean(), integrand.std()))
 
-    a, w = logistic_integrate(1000, 0., 2., device=device, deterministic=deterministic)
+    a, w = logistic_integrate(npoints, 0., 2., device=device, deterministic=deterministic)
     rv = t.distributions.Normal(0., 1.)
     integrand = t.exp(rv.log_prob(a)) * w
     print("integrate N(0,1) ~ 1 w/ too much weight on tails? {:.3f} +- {:.3f} / sqrt(n)".format(integrand.mean(), integrand.std()))
 
-    a, w = logistic_integrate(1000, 0., 0.5, device=device, deterministic=deterministic)
+    a, w = logistic_integrate(npoints, 0., 0.5, device=device, deterministic=deterministic)
     integrand = t.exp(rv.log_prob(a)) * w
     print("integrate N(0,1) ~ 1 w/ not enough weight on tails? {:.3f} +- {:.3f} / sqrt(n)".format(integrand.mean(), integrand.std()))
     # Less weight on tails is actually better, in this case, because logistic has heavier tails than Gaussian
 
-    a, w = logistic_integrate(1000, 0., 1., device=device, deterministic=deterministic)
+    a, w = logistic_integrate(npoints, 0., 1., device=device, deterministic=deterministic)
     integrand = t.exp(-a) / t.square(1+t.exp(-a)) * w  # logistic distribution, should integrate to one with low variance
     print("integrate logistic ~ 1 w/ correct loc/scale. {:.3f} +- {:.3f} / sqrt(n)".format(integrand.mean(), integrand.std()))
     # Result is less than 1, because we clip the tails by default to avoid large weights
@@ -276,7 +277,7 @@ def test_snr_detect(n_samples=1000, n_features=32):
     gt_net.to(device)
     dm = DiffusionModel(gt_net)
     # there are no params to fit, but we run it once just to populate validation stats in train loop
-    dm.fit(dataset, val_dataset=dataset, epochs=1, lr=1e-2, batch_size=500, verbose=False)
+    dm.fit(dataset, dataloader_test=dataset, epochs=1, lr=1e-2, verbose=False)
     fig = viz(dm.logs, d=n_features)
     fig.savefig('figures/detect_snr_test_mse_curve.png')
 
@@ -358,9 +359,9 @@ def test_snr_detect(n_samples=1000, n_features=32):
 
 
 if __name__ == "__main__":
-    test_snr_detect()
-    test_gaussian()  # Batch one test is slow, but worth checking if integrator is changed
+    # test_snr_detect()
     test_tn_integrate()
     test_logistic_integrate()
     print("REDO logistic integrate test, deterministic=TRUE")
-    test_logistic_integrate(deterministic=True)
+
+    test_gaussian()  # Batch one test is slow, but worth checking if integrator is changed
