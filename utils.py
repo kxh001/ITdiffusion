@@ -94,7 +94,11 @@ def logistic_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic
     loc, scale, clip = t.tensor(loc, device=device), t.tensor(scale, device=device), t.tensor(clip, device=device)
 
     # IID samples from uniform, use inverse CDF to transform to target distribution
-    ps = t.rand(npoints, dtype=loc.dtype, device=device)
+    if deterministic:
+        t.manual_seed(0)
+        ps = t.rand(npoints, dtype=loc.dtype, device=device)
+    else:
+        ps = t.rand(npoints, dtype=loc.dtype, device=device)
     ps = t.sigmoid(-clip) + (t.sigmoid(clip) - t.sigmoid(-clip)) * ps  # Scale quantiles to clip
     logsnr = loc + scale * t.logit(ps)  # Using quantile function for logistic distribution
 
