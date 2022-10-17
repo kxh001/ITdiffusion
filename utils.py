@@ -86,7 +86,7 @@ def trunc_normal_integrate(npoints, loc, scale, clip=3, device='cpu'):
     return a, w
 
 
-def logistic_integrate(npoints, loc, scale, clip=4., device='cpu'):
+def logistic_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False):
     """Return sample point and weights for integration, using
     a truncated logistic distribution as the base, and importance weights.
     Sample points are low discrepancy, as in Variational Diffusion Models paper.
