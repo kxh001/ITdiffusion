@@ -230,7 +230,7 @@ class GaussianDiffusion:
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(
-        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None
+        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None, iddpm=True
     ):
         """
         Apply the model to get p(x_{t-1} | x_t), as well as a prediction of
@@ -257,8 +257,10 @@ class GaussianDiffusion:
 
         B, C = x.shape[:2]
         assert t.shape == (B,)
-        # model_output = model(x, self._scale_timesteps(t), **model_kwargs)
-        model_output = model(x, self._scale_timesteps(t))["sample"] # if use hugging face interface
+        if iddpm:
+            model_output = model(x, self._scale_timesteps(t), **model_kwargs)
+        else:
+            model_output = model(x, self._scale_timesteps(t))["sample"] # if use hugging face interface
 
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
@@ -641,7 +643,7 @@ class GaussianDiffusion:
                 img = out["sample"]
 
     def _vb_terms_bpd(
-        self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None, cont_density=False
+        self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None, cont_density=False, iddpm=True
     ):
         """
         Get a term for the variational lower-bound.
@@ -657,7 +659,7 @@ class GaussianDiffusion:
             x_start=x_start, x_t=x_t, t=t
         )
         out = self.p_mean_variance(
-            model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
+            model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs, iddpm=iddpm
         )
         kl = normal_kl(
             true_mean, true_log_variance_clipped, out["mean"], out["log_variance"]
@@ -774,7 +776,7 @@ class GaussianDiffusion:
         )
         return mean_flat(kl_prior) / np.log(2.0)
 
-    def calc_bpd_loop(self, model, x_start, clip_denoised=True, model_kwargs=None, cont_density=False):
+    def calc_bpd_loop(self, model, x_start, clip_denoised=True, model_kwargs=None, cont_density=False, iddpm=True):
         """
         Compute the entire variational lower-bound, measured in bits-per-dim,
         as well as other related quantities.
@@ -811,7 +813,8 @@ class GaussianDiffusion:
                     t=t_batch,
                     clip_denoised=clip_denoised,
                     model_kwargs=model_kwargs,
-                    cont_density=cont_density
+                    cont_density=cont_density,
+                    iddpm=iddpm
                 )
             vb.append(out["output"])
             xstart_mse.append(mean_flat((out["pred_xstart"] - x_start) ** 2))

@@ -45,10 +45,10 @@ def main():
     )
 
     logger.log("evaluating...")
-    run_bpd_evaluation(model, diffusion, data, args.num_samples, args.clip_denoised)
+    run_bpd_evaluation(model, diffusion, data, args.num_samples, args.clip_denoised, args.cont_density)
 
 
-def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised):
+def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_density):
     all_bpd = []
     all_metrics = {"vb": [], "mse": [], "xstart_mse": []}
     num_complete = 0
@@ -57,7 +57,7 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised):
         batch = batch.to(dist_util.dev())
         model_kwargs = {k: v.to(dist_util.dev()) for k, v in model_kwargs.items()}
         minibatch_metrics = diffusion.calc_bpd_loop(
-            model, batch, clip_denoised=clip_denoised, model_kwargs=model_kwargs
+            model, batch, clip_denoised=clip_denoised, cont_density=cont_density, model_kwargs=model_kwargs
         )
 
         for key, term_list in all_metrics.items():
@@ -85,7 +85,7 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised):
 
 def create_argparser():
     defaults = dict(
-        data_dir="", clip_denoised=True, num_samples=100, batch_size=10, model_path="", # hugface=True, iddpm=False
+        data_dir="", clip_denoised=True, num_samples=100, batch_size=10, model_path="", cont_density=True # hugface=True, iddpm=False
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
