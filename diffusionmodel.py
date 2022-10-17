@@ -101,7 +101,10 @@ class DiffusionModel(nn.Module):
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
         logsnr, w = logistic_integrate(npoints, *self.loc_scale, device=self.device, deterministic=True)
-        # determinstic = False // change npoints
+        # sort logsnrs along with weights
+        logsnr, idx = logsnr.sort()
+        w = w[idx]
+
         results['logsnr'] = logsnr.to('cpu')
         mses = t.zeros(npoints, device='cpu')
         mses_dequantize = t.zeros(npoints, device='cpu')
@@ -143,8 +146,7 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr).to('cpu')
 
-        results['nll (nats)'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.)).mean()
-        # results['nll (nats)'] = self.h_g - 0.5 * (w * (self.mmse_g(logsnr) - mses.to(self.device))).mean() # nll (nats) without clipping 
+        results['nll (nats)'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.)).mean() 
         results['nll (nats) - dequantize'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.)).mean()
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
@@ -252,7 +254,7 @@ class DiffusionModel(nn.Module):
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
             # np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
-            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/model_epoch{i}.pt')
+            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/ddpm_model_epoch{i}.pt')
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
@@ -260,8 +262,8 @@ class DiffusionModel(nn.Module):
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
-                    np.save(f"/home/theo/Research_Results/fine_tune/results_epoch{i}.npy", [results, val_loss])
-                self.log_function(val_loss=val_loss, results=results)
+                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_results_epoch{i}_base.npy", [results, val_loss])
+                    # self.log_function(val_loss=val_loss, results=results)
 
             if verbose:
                 logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
@@ -278,8 +280,8 @@ class DiffusionModel(nn.Module):
         if val_loss:
             self.logs['val loss'].append(val_loss)
         if results:
-            self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
-            self.logs['mse_eps_curves'].append(results['mses'])
+            # self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
+            # self.logs['mse_eps_curves'].append(results['mses'])
             self.results['mses'] = results['mses']
             self.results['mses_round_xhat'] = results['mses_round_xhat']
             self.results['mses_dequantize'] = results['mses_dequantize']
