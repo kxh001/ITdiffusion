@@ -100,11 +100,15 @@ class DiffusionModel(nn.Module):
         if self.model.training:
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
-        logsnr, w = logistic_integrate(npoints, *self.loc_scale, device=self.device, deterministic=True)
+        clip = 4  # TODO: This should be stored in the class object, like loc_scale
+        loc, scale = self.loc_scale
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device)
+        left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx]
 
+        # determinstic = False // change npoints
         results['logsnr'] = logsnr.to('cpu')
         mses = t.zeros(npoints, device='cpu')
         mses_dequantize = t.zeros(npoints, device='cpu')
@@ -146,26 +150,30 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr).to('cpu')
 
-        results['nll (nats)'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.)).mean() 
-        results['nll (nats) - dequantize'] = self.h_g - 0.5 * (w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.)).mean()
+        var, mean = t.var_mean(self.h_g - 0.5 * w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.))
+        results['nll (nats)'] = mean
+        results['nll (nats) var'] = var
+        var, mean = t.var_mean(self.h_g - 0.5 * w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.))
+        results['nll (nats) - dequantize'] = mean
+        results['nll (nats) - dequantize var'] = var
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
         if delta:
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
-                left_ind_tmp = t.nonzero(self.mmse_g(logsnr) > mses.to(self.device))
-                left_ind = left_ind_tmp[0][0].item() #if len(left_ind_tmp) > 0 else 0
-                left_logsnr = logsnr[left_ind]
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
 
                 j_max = int((xinterval[1] - xinterval[0]) / delta)
-                right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * t.exp(logsnr[-1])) for j in range(1, j_max+1)])
+                right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
+
                 mses_min = t.minimum(mses, mses_round_xhat)
-                nll_discrete = 0.5 * (w[left_ind:] * mses_min[left_ind:].to(self.device)).sum() / len(mses) + right_tail + left_tail
+                var, nll_discrete = t.var_mean(0.5 * (w * mses_min.to(self.device)) + right_tail + left_tail)
                 results['nll-discrete'] = nll_discrete
+                results['nll-discrete var'] = var
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
         return results, val_loss
+
 
     @property
     def loc_scale(self):
