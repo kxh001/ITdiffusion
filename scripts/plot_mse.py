@@ -51,7 +51,7 @@ def viz_multiple(mses, log_eigs, logsnrs, d, train_loss, val_loss, nll):
     ax.legend()
     ax.set_ylabel('NLL (bpd)')
     ax.set_xlabel('Epochs')
-    ax.set_title('DDPM (train_bs = 128, test_bs = 10)')    
+    ax.set_title('DDPM')    
 
     base_logsnrs = t.linspace(logsnrs[0][0], logsnrs[0][-1], 100)
     base_baseline = np.array([d / (1. + np.exp(-logsnr)) for logsnr in base_logsnrs])
@@ -97,7 +97,7 @@ def viz_change_mse(mses, log_eigs, logsnrs, d):
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon)^2]$')
     ax.set_xlabel('log SNR ($\gamma$)')
     # ax.legend(fontsize = 'x-small')
-    ax.set_title('DDPM (new)')
+    ax.set_title('DDPM')
 
     base_logsnrs = t.linspace(logsnrs[length-1][0], logsnrs[length-1][-1], 100)
     base_baseline = np.array([d / (1. + np.exp(-logsnr)) for logsnr in base_logsnrs])
@@ -138,7 +138,7 @@ def viz_change_loss(train_loss, val_loss, nll):
     ax.legend()
     ax.set_ylabel('NLL (bpd)')
     ax.set_xlabel('Epochs')
-    ax.set_title('DDPM (new)')
+    ax.set_title('DDPM')
 
     ax = axs[0]
     ax.plot(np.arange(1, niter+1), train_loss[niter:], '--o', label='train_loss')
@@ -160,13 +160,13 @@ def main():
     train_loss = []
     test_loss = []
     nll = []
-    epoch = 10
+    epoch = 5
 
     covariance = t.load('./scripts/cifar_covariance.pt')
     mu, U, log_eigs = covariance
 
-    # # load one test result 
-    # x = np.load(f'/home/theo/Research_Results/debug/train_bs8/ddpm_results_epoch1_base.npy', allow_pickle=True)
+    # load one test result 
+    # x = np.load(f'/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_results_epoch1_bs1.npy', allow_pickle=True)
     # mses = x[0]['mses']
     # logsnrs = x[0]['logsnr']
     # print(x[0]['nll (nats)'], x[1])
@@ -174,11 +174,11 @@ def main():
     # plt.show()
 
     # load ddpm mse curves and loss
-    train_loss = np.load('/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_train_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
-    train_loss = train_loss.tolist()[:epoch]
+    train_loss1 = np.load('./results/debug/iid_sampler/train_bs64/ddpm_train_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    train_loss.extend(train_loss1.tolist()[:epoch])
     for i in range(epoch+1):
-        # x = np.load(f'/home/theo/Research_Results/fine_tune_train_fixed/ddpm_high/results_epoch{i}.npy', allow_pickle=True)
-        x = np.load(f'/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_results_epoch{i}_base.npy', allow_pickle=True)
+        # x = np.load(f'./results/fine_tune/ddpm/results_epoch{i}.npy', allow_pickle=True)
+        x = np.load(f'./results/debug/iid_sampler/train_bs64/ddpm_results_epoch{i}_base.npy', allow_pickle=True)
         if i == 0:
             mses.append(x[0]['mses'])
             logsnrs.append(x[0]['logsnr'])
@@ -187,14 +187,17 @@ def main():
         else:
             mses.append(x[0]['mses'])
             logsnrs.append(x[0]['logsnr'])
-            # y = np.load(f'/home/theo/Research_Results/fine_tune_train_fixed/ddpm_high/train_loss_epoch{i}.npy', allow_pickle=True)
+            # y = np.load(f'./results/fine_tune/ddpm/train_loss_epoch{i}.npy', allow_pickle=True)
             # train_loss.append(y/32/32/3/np.log(2.0))
             test_loss.append(x[1]/32/32/3/np.log(2.0))
             nll.append(x[0]['nll (bpd)'].cpu().numpy())
 
     # load iddpm mse curves and loss
+    train_loss2 = np.load('./results/debug/iid_sampler/train_bs32/iddpm_train_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    train_loss.extend(train_loss2.tolist()[:epoch])
     for i in range(epoch+1):
-        x = np.load(f'/home/theo/Research_Results/fine_tune/iddpm/results_epoch{i}.npy', allow_pickle=True)
+        # x = np.load(f'./results/fine_tune/iddpm/results_epoch{i}.npy', allow_pickle=True)
+        x = np.load(f'./results/debug/iid_sampler/train_bs32/iddpm_results_epoch{i}_base.npy', allow_pickle=True)
         if i == 0:
             mses.append(x[0]['mses'])
             logsnrs.append(x[0]['logsnr'])
@@ -203,8 +206,8 @@ def main():
         else:
             mses.append(x[0]['mses'])
             logsnrs.append(x[0]['logsnr'])
-            y = np.load(f'/home/theo/Research_Results/fine_tune/iddpm/train_loss_epoch{i}.npy', allow_pickle=True)
-            train_loss.append(y/32/32/3/np.log(2.0))
+            # y = np.load(f'./results/fine_tune/iddpm/train_loss_epoch{i}.npy', allow_pickle=True)
+            # train_loss.append(y/32/32/3/np.log(2.0))
             test_loss.append(x[1]/32/32/3/np.log(2.0))
             nll.append(x[0]['nll (bpd)'].cpu().numpy())
     print("train loss: {} \n test loss: {}".format(train_loss, test_loss))
@@ -213,6 +216,8 @@ def main():
     fig1 = viz_change_mse(mses, log_eigs, logsnrs, 32*32*3)
     fig2 = viz_change_loss(train_loss, test_loss, nll)
     # fig3 = viz_multiple(mses, log_eigs, logsnrs, 32*32*3, train_loss, test_loss, nll)
+    fig1.savefig(f'./results/figs/MSE.pdf')
+    fig2.savefig(f'./results/figs/LOSS.pdf')
     plt.show()
 
 
