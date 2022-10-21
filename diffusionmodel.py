@@ -22,9 +22,10 @@ class DiffusionModel(nn.Module):
         self.logs = {"val loss": [], "train loss": [],
                      'mse_curves': [], 'mse_eps_curves': [],
                      'logsnr_loc': [], 'logsnr_scale': [],
-                     'logsnr_grid': t.linspace(-6, 6, 60),  # Where to evaluate curves for later visualization
+                     'logsnr_grid': t.linspace(-6, 6, 100),  # Where to evaluate curves for later visualization
                     }  # store stuff for plotting, could use tensorboard for larger models
         self.loc_logsnr, self.scale_logsnr = 0., 2.  # initial location and scale for integration. Reset in data-driven way by dataset_info
+        self.clip = 4 # initial quantile for integration.
         self.device = "cuda" if t.cuda.is_available() else "cpu"
         print(f"Using {self.device} device for DiffusionModel")
         # dtype, dimensionality, and shape for data, set when we see it in "fit"
@@ -100,15 +101,14 @@ class DiffusionModel(nn.Module):
         if self.model.training:
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
-        clip = 4  # TODO: This should be stored in the class object, like loc_scale
+        clip = self.clip 
         loc, scale = self.loc_scale
-        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device)
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx]
 
-        # determinstic = False // change npoints
         results['logsnr'] = logsnr.to('cpu')
         mses = t.zeros(npoints, device='cpu')
         mses_dequantize = t.zeros(npoints, device='cpu')
@@ -262,7 +262,7 @@ class DiffusionModel(nn.Module):
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
             # np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
-            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/ddpm_model_epoch{i}.pt')
+            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_model_epoch{i}.pt')
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
@@ -270,14 +270,17 @@ class DiffusionModel(nn.Module):
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
-                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_results_epoch{i}_base.npy", [results, val_loss])
-                    # self.log_function(val_loss=val_loss, results=results)
+                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm_results_epoch{i}_base.npy", [results, val_loss])
+                    self.log_function(val_loss=val_loss, results=results)
 
             if verbose:
                 logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
                       format(i, train_loss, val_loss, iter_per_sec))
-                logger.log('testing nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'.
-                    format(results['nll-discrete (bpd)'], results['nll-discrete-limit (bpd)'], results['nll-discrete-limit (bpd) - dequantize']))
+                logger.log('nll (nats): {:0.4f}\t nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'.
+                    format(results['nll (nats)'],
+                        results['nll-discrete (bpd)'], 
+                        results['nll-discrete-limit (bpd)'], 
+                        results['nll-discrete-limit (bpd) - dequantize']))
 
     def log_function(self, train_loss=None, val_loss=None, results=None):
         """Record logs during training."""
@@ -288,19 +291,8 @@ class DiffusionModel(nn.Module):
         if val_loss:
             self.logs['val loss'].append(val_loss)
         if results:
-            # self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
-            # self.logs['mse_eps_curves'].append(results['mses'])
-            self.results['mses'] = results['mses']
-            self.results['mses_round_xhat'] = results['mses_round_xhat']
-            self.results['mses_dequantize'] = results['mses_dequantize']
-            self.results['mmse_g'] = results['mmse_g']
-            self.results['nll (nats)'] = results['nll (nats)']
-            self.results['nll (nats) - dequantize'] = results['nll (nats) - dequantize']
-            self.results['nll (bpd)'] = results['nll (bpd) - dequantize']
-            self.results['nll-discrete-limit (bpd)'] = results['nll-discrete-limit (bpd)']
-            self.results['nll-discrete-limit (bpd) - dequantize'] = results['nll-discrete-limit (bpd) - dequantize']
-            self.results['nll-discrete'] = results['nll-discrete']
-            self.results['nll-discrete (bpd)'] = results['nll-discrete (bpd)']
+            self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
+            self.logs['mse_eps_curves'].append(results['mses'])
 
 
     ##########################################
