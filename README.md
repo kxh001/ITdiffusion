@@ -6,5 +6,5 @@ Folder utilsbase includes the utilities for iddpm framework, and use scripts to 
 
 ## Results
 - Test on 100 random images
-![MSE curves](./results/figs/MSE.pdf)
-![LOSS curves](./results/figs/LOSS.pdf)
+![MSE curves](./results/figs/MSE.png)
+![LOSS curves](./results/figs/LOSS.png)
