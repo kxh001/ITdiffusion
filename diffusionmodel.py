@@ -163,10 +163,8 @@ class DiffusionModel(nn.Module):
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
                 left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
-
                 j_max = int((xinterval[1] - xinterval[0]) / delta)
                 right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
-
                 mses_min = t.minimum(mses, mses_round_xhat)
                 var, nll_discrete = t.var_mean(0.5 * (w * mses_min.to(self.device)) + right_tail + left_tail)
                 results['nll-discrete'] = nll_discrete
@@ -261,8 +259,7 @@ class DiffusionModel(nn.Module):
             iter_per_sec = len(dataloader_train) / (time.time() - t0)
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
-            # np.save(f"/home/theo/Research_Results/fine_tune/train_loss_epoch{i}.npy", train_loss)
-            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_model_epoch{i}.pt')
+            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_model_epoch{i}.pt') # save model
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
@@ -270,7 +267,7 @@ class DiffusionModel(nn.Module):
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
-                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm_results_epoch{i}_base.npy", [results, val_loss])
+                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm_results_epoch{i}_base.npy", results) # save test results and val loss
                     self.log_function(val_loss=val_loss, results=results)
 
             if verbose:

@@ -4,7 +4,6 @@ import numpy as np
 import torch.distributed as dist
 import torch as t
 
-from utilsiddpm.utils import viz, plot_image
 from utilsiddpm import dist_util, logger
 from utilsiddpm.image_datasets import load_data, load_dataloader
 from utilsiddpm.script_util import (
@@ -65,13 +64,14 @@ def main():
 
 
     logger.log("fine tune model...")
-    # diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
-    diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
+    if args.is_test:
+        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
+    else:
+        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
 
     logger.log("save results...")
-    np.save(f"/home/theo/Research_Results/fine_tune/results_all.npy", diffusion.results)
-    np.save(f"/home/theo/Research_Results/fine_tune/train_loss_all.npy", diffusion.logs['train loss'])
-    np.save(f"/home/theo/Research_Results/fine_tune/test_loss_all.npy", diffusion.logs['val loss'])
+    np.save(f"/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_train_loss_all.npy", diffusion.logs['train loss'])
+    np.save(f"/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_test_loss_all.npy", diffusion.logs['val loss'])
 
 def create_argparser():
     defaults = dict(
@@ -87,6 +87,7 @@ def create_argparser():
         wrapped = True,
         class_cond = False,
         diagonal = False,
+        is_test = False
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
