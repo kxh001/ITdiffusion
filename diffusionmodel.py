@@ -221,7 +221,7 @@ class DiffusionModel(nn.Module):
         else:
             self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
 
-    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
+    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False, iddpm=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
            See CustomDataset class for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
@@ -259,7 +259,10 @@ class DiffusionModel(nn.Module):
             iter_per_sec = len(dataloader_train) / (time.time() - t0)
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
-            t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_model_epoch{i}.pt') # save model
+            if iddpm:
+                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/iddpm/model_epoch{i}.pt') # save model
+            else:
+                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/ddpm/model_epoch{i}.pt') # save model
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
@@ -267,7 +270,10 @@ class DiffusionModel(nn.Module):
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
-                    np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm_results_epoch{i}_base.npy", results) # save test results and val loss
+                    if iddpm:
+                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm/results_epoch{i}_base.npy", results) # save test results
+                    else:
+                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/ddpm/results_epoch{i}_base.npy", results) # save test results
                     self.log_function(val_loss=val_loss, results=results)
 
             if verbose:

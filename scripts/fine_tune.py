@@ -65,13 +65,17 @@ def main():
 
     logger.log("fine tune model...")
     if args.is_test:
-        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
+        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True, iddpm=args.iddpm)
     else:
-        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
+        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam', iddpm=args.iddpm)
 
     logger.log("save results...")
-    np.save(f"/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_train_loss_all.npy", diffusion.logs['train loss'])
-    np.save(f"/media/theo/Data/checkpoints/iid_sampler/train_bs64/iddpm_test_loss_all.npy", diffusion.logs['val loss'])
+    if args.iddpm:
+        out_path = f"/media/theo/Data/checkpoints/iid_sampler/iddpm"
+    else:
+        out_path = f"/media/theo/Data/checkpoints/iid_sampler/ddpm"
+    np.save(os.path.join(out_path,"train_loss_all.npy"), diffusion.logs['train loss'])
+    np.save(os.path.join(out_path,"test_loss_all.npy"), diffusion.logs['val loss'])
 
 def create_argparser():
     defaults = dict(
