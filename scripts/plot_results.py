@@ -324,6 +324,7 @@ def process_results():
         print(disc_bpd_from_mse(wbar, m['mses_round_xhat']))
 
     # calculate variants
+    print('\n\n\n standard deviation')
     def calc_std(var, n, d):
         return math.sqrt(var / n) / d / math.log(2.0)
     ddpm_nll_std = calc_std(ddpm['nll (nats) var'], 100, d)
