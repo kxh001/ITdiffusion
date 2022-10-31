@@ -224,9 +224,6 @@ def plot_mse_loss():
     fig2.savefig(f'./results/figs/LOSS.pdf')
     # plt.show()
 
-def calc_std(var, n, d):
-    return math.sqrt(var / n) / d / math.log(2.0)
-
 def process_results():
     ddpm = np.load('./results/fine_tune/ddpm/results_epoch0.npy', allow_pickle=True).item()
     iddpm = np.load('./results/fine_tune/iddpm/results_epoch0.npy', allow_pickle=True).item()
@@ -325,6 +322,30 @@ def process_results():
     for wbar, m in [(w, ddpm), (w, iddpm), (w, ddpm_tune), (w, iddpm_tune)]:
         print('Get BPDs for rounded solutions alone')
         print(disc_bpd_from_mse(wbar, m['mses_round_xhat']))
+
+    # calculate variants
+    def calc_std(var, n, d):
+        return math.sqrt(var / n) / d / math.log(2.0)
+    ddpm_nll_std = calc_std(ddpm['nll (nats) var'], 100, d)
+    ddpm_nll_dequantize_std = calc_std(ddpm['nll (nats) - dequantize var'], 100, d)
+    ddpm_nll_discrete_std = calc_std(ddpm['nll-discrete var'], 100, d)
+
+    ddpm_tune_nll_std = calc_std(ddpm_tune['nll (nats) var'], 100, d)
+    ddpm_tune_nll_dequantize_std = calc_std(ddpm_tune['nll (nats) - dequantize var'], 100, d)
+    ddpm_tune_nll_discrete_std = calc_std(ddpm_tune['nll-discrete var'], 100, d)
+
+    iddpm_nll_std = calc_std(iddpm['nll (nats) var'], 100, d)
+    iddpm_nll_dequantize_std = calc_std(iddpm['nll (nats) - dequantize var'], 100, d)
+    iddpm_nll_discrete_std = calc_std(iddpm['nll-discrete var'], 100, d)
+
+    iddpm_tune_nll_std = calc_std(iddpm_tune['nll (nats) var'], 100, d)
+    iddpm_tune_nll_dequantize_std = calc_std(iddpm_tune['nll (nats) - dequantize var'], 100, d)
+    iddpm_tune_nll_discrete_std = calc_std(iddpm_tune['nll-discrete var'], 100, d)
+
+    print('DDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_nll_std, ddpm_nll_discrete_std, ddpm_nll_dequantize_std))
+    print('IDDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_nll_std, iddpm_nll_discrete_std, iddpm_nll_dequantize_std))
+    print('DDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_tune_nll_std, ddpm_tune_nll_discrete_std, ddpm_tune_nll_dequantize_std))
+    print('IDDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_tune_nll_std, iddpm_tune_nll_discrete_std, iddpm_tune_nll_dequantize_std))
 
 def main():
     # plot_mse_loss()
