@@ -18,7 +18,7 @@ from tqdm import tqdm
 import sys
 sys.path.append('..')  # Lame, must be a better way to do relative import
 import diffusionmodel as dm
-from utilsiddpm.utils import viz, plot_image
+# from utilsiddpm.utils import viz, plot_image
 from utilsiddpm import dist_util, logger
 from utilsiddpm.image_datasets import load_data, load_dataloader
 
@@ -92,8 +92,11 @@ def main():
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("Testing test_nll code")
-    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
     print(results)
+    results2 = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    print(results)
+    import IPython; IPython.embed()
 
     logger.log("Generating samples")
     # TODO: Add a sampling test
@@ -101,7 +104,6 @@ def main():
     # schedule = diffusion.generate_schedule(1000, plot_grid=True)
     schedule = t.load('schedule_cifar_500.pt')
     # schedule = diffusion.generate_schedule(100, data, plot_grid=True)  # Pretty slow! Maybe an hour or two - subset of data is sufficient, and we can store it
-    import IPython; IPython.embed()
 
     z = diffusion.sample(schedule, n_samples=9, store_t=5)
     image_movie(z, '../figures/sample_test.mp4')
