@@ -108,16 +108,15 @@ class DiffusionModel(nn.Module):
         results = {}  # Return multiple forms of results in a dictionary
         clip = self.clip 
         loc, scale = self.loc_scale
-        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device='cpu', deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx]
 
         results['logsnr'] = logsnr.to('cpu')
-        mses = t.zeros(npoints, device='cpu')
-        mses_dequantize = t.zeros(npoints, device='cpu')
-        mses_round_xhat = t.zeros(npoints, device='cpu')
+        results['w'] = w.to('cpu')
+        mses, mses_dequantize, mses_round_xhat = [], [], []  # Store all MSEs, per sample, logsnr, in an array
         total_samples = 0
         val_loss = 0
         for batch in tqdm(dataloader):
@@ -129,52 +128,70 @@ class DiffusionModel(nn.Module):
 
             val_loss += self.nll([data, ] + batch[1:], xinterval=xinterval).cpu() * n_samples
 
+            mses.append(t.zeros(n_samples, len(logsnr)))
+            mses_round_xhat.append(t.zeros(n_samples, len(logsnr)))
+            mses_dequantize.append(t.zeros(n_samples, len(logsnr)))
             for j, this_logsnr in enumerate(logsnr):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
                 # Regular MSE, clamps predictions, but does not discretize
-                this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval))
-                mses[j] += n_samples * this_mse.cpu()
+                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval).cpu()
+                mses[-1][:, j] = this_mse
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft))
-                    mses_round_xhat[j] += n_samples * this_mse.cpu()
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                    mses_round_xhat[-1][:, j] = this_mse
 
                     # Dequantize
-                    this_mse = t.mean(self.mse([data_dequantize] + batch[1:], this_logsnr_broadcast, mse_type='epsilon'))
-                    mses_dequantize[j] += n_samples * this_mse.cpu()
+                    this_mse = self.mse([data_dequantize] + batch[1:], this_logsnr_broadcast, mse_type='epsilon').cpu()
+                    mses_dequantize[-1][:, j] = this_mse
 
         val_loss /= total_samples
-        mses /= total_samples  # Average
-        mses_round_xhat /= total_samples
-        mses_dequantize /= total_samples
+
+        mses = t.cat(mses, dim=0)  # Concatenate the batches together across axis 0
+        mses_round_xhat = t.cat(mses_round_xhat, dim=0)
+        mses_dequantize = t.cat(mses_dequantize, dim=0)
+        results['mses-all'] = mses  # Store array of mses for each sample, logsnr
+        results['mses_round_xhat-all'] = mses_round_xhat
+        results['mses_dequantize-all'] = mses_dequantize
+        mses = mses.mean(dim=0)  # Average across samples, giving MMSE(logsnr)
+        mses_round_xhat = mses_round_xhat.mean(dim=0)
+        mses_dequantize = mses_dequantize.mean(dim=0)
 
         results['mses'] = mses
         results['mses_round_xhat'] = mses_round_xhat
         results['mses_dequantize'] = mses_dequantize
-        results['mmse_g'] = self.mmse_g(logsnr).to('cpu')
+        results['mmse_g'] = self.mmse_g(logsnr.to(self.device)).to('cpu')
 
-        var, mean = t.var_mean(self.h_g - 0.5 * w * t.clamp(self.mmse_g(logsnr) - mses.to(self.device), 0.))
-        results['nll (nats)'] = mean
-        results['nll (nats) var'] = var
-        var, mean = t.var_mean(self.h_g - 0.5 * w * t.clamp(self.mmse_g(logsnr) - mses_dequantize.to(self.device), 0.))
-        results['nll (nats) - dequantize'] = mean
-        results['nll (nats) - dequantize var'] = var
+        results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses, 0.))
+        results['nll (nats) - dequantize'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses_dequantize, 0.))
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
+
         if delta:
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
             results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
-                left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum()
+                left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum().cpu()
                 j_max = int((xinterval[1] - xinterval[0]) / delta)
                 right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
                 mses_min = t.minimum(mses, mses_round_xhat)
-                var, nll_discrete = t.var_mean(0.5 * (w * mses_min.to(self.device)) + right_tail + left_tail)
-                results['nll-discrete'] = nll_discrete
-                results['nll-discrete var'] = var
+                results['nll-discrete'] = t.mean(0.5 * (w * mses_min) + right_tail + left_tail)
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
+
+        # Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
+        # n_samples is number of x samples * number of logsnr samples per x
+        inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region
+        n_samples = results['mses-all'].numel()
+        wp = w[inds]
+        results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
+        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples
+        results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
+        results['nll (bpd) - std'] = t.sqrt(results['nll (nats) - var']) / math.log(2) / self.d
+        results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d
+        results['nll-discrete (bpd) - std'] = t.sqrt(results['nll-discrete (nats) - var']) / math.log(2) / self.d
+
         return results, val_loss
 
 

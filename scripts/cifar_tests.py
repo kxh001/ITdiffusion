@@ -71,7 +71,7 @@ def main():
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=False,  # Generating MMSE curves with subset, better to use random subset
-        subset=100
+        subset=101
     )
 
     # # I changed the hard coded train location for my system, should come up with better solution
@@ -92,9 +92,7 @@ def main():
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("Testing test_nll code")
-    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
-    print(results)
-    results2 = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
     print(results)
     import IPython; IPython.embed()
 
