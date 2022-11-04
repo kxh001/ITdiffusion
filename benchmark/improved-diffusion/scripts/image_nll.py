@@ -28,7 +28,6 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    # import IPython; IPython.embed()
     model.load_state_dict(
         dist_util.load_state_dict(args.model_path, map_location="cpu")
     )
@@ -45,10 +44,10 @@ def main():
     )
 
     logger.log("evaluating...")
-    run_bpd_evaluation(model, diffusion, data, args.num_samples, args.clip_denoised, args.cont_density)
+    run_bpd_evaluation(model, diffusion, data, args.num_samples, args.clip_denoised, args.cont_density, args.iddpm)
 
 
-def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_density):
+def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_density, iddpm):
     all_bpd = []
     all_metrics = {"vb": [], "mse": [], "xstart_mse": []}
     num_complete = 0
@@ -57,7 +56,7 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_
         batch = batch.to(dist_util.dev())
         model_kwargs = {k: v.to(dist_util.dev()) for k, v in model_kwargs.items()}
         minibatch_metrics = diffusion.calc_bpd_loop(
-            model, batch, clip_denoised=clip_denoised, cont_density=cont_density, model_kwargs=model_kwargs
+            model, batch, clip_denoised=clip_denoised, cont_density=cont_density, model_kwargs=model_kwargs, iddpm=iddpm
         )
 
         for key, term_list in all_metrics.items():
@@ -85,7 +84,7 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_
 
 def create_argparser():
     defaults = dict(
-        data_dir="", clip_denoised=True, num_samples=100, batch_size=10, model_path="", cont_density=True # hugface=True, iddpm=False
+        data_dir="", clip_denoised=True, num_samples=10000, batch_size=256, model_path="", cont_density=True, hugface=True, iddpm=False
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
