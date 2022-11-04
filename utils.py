@@ -121,3 +121,40 @@ def plot_image(img_coll, num_samples, logsnrs):
             ax.tick_params(labelbottom=False, labelleft=False)
     fig.set_tight_layout(True)
     plt.show()
+
+
+def soft_round(x, snr, xinterval, delta):
+    ndim = len(x.shape)
+    bins = t.linspace(xinterval[0], xinterval[1], 1 + int((xinterval[1]-xinterval[0])/delta), device=x.device)
+    bins = bins.reshape((-1,) + (1,) * ndim)
+    ps = t.nn.functional.softmax(-0.5 * t.square(x - bins) * (1+snr), dim=0)
+    return (bins * ps).sum(dim=0)
+
+def viz_soft_round():
+    z = t.linspace(-2, 2, 10000)
+    delta = 0.25
+    xrange = (-1, 1)
+
+    fig, ax = plt.subplots(1,1)
+
+    for s in [1, 100, 1000]:
+        ax.plot(z, soft_round(z, s, xrange, delta), label='SNR={}'.format(s))
+
+    # Major ticks every 20, minor ticks every 5
+    minor_ticks_y = np.arange(xrange[0], xrange[1]+delta, delta)
+    minor_ticks_x = np.arange(-2, 2+delta, delta)
+
+    major_ticks_y = minor_ticks_y[::4]
+    major_ticks_x = minor_ticks_x[::4]
+
+    ax.set_xticks(major_ticks_x)
+    ax.set_yticks(major_ticks_y)
+    ax.set_xticks(minor_ticks_x, minor=True)
+    ax.set_yticks(minor_ticks_y, minor=True)
+
+    # And a corresponding grid
+    ax.set_aspect(0.5)
+    ax.grid(which='both', linestyle='--', linewidth=0.3)
+    ax.legend()
+    fig.set_tight_layout()
+    fig.savefig('soft_round_plot.png')

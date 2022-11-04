@@ -8,6 +8,8 @@ import torch as t
 import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
+
+import utils
 from utils import logistic_integrate
 from utilsiddpm import logger
 
@@ -41,7 +43,7 @@ class DiffusionModel(nn.Module):
         eps = t.randn((len(logsnr),) + self.shape, dtype=x.dtype, device=x.device)
         return t.sqrt(t.sigmoid(logsnr)) * x + t.sqrt(t.sigmoid(-logsnr)) * eps, eps
 
-    def mse(self, batch, logsnr, mse_type='epsilon', xinterval=None, delta=None):
+    def mse(self, batch, logsnr, mse_type='epsilon', xinterval=None, delta=None, soft=False):
         """Return MSE curve either conditioned or not on y.
         x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
         so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
@@ -57,7 +59,10 @@ class DiffusionModel(nn.Module):
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
         if delta:
-            x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # Round to nearest discrete value
+            if soft:
+                x_hat = utils.soft_round(x_hat, t.exp(logsnr).view(self.left), xinterval, delta)
+            else:
+                x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # Round to nearest discrete value
         if xinterval:
             x_hat = t.clamp(x_hat, xinterval[0], xinterval[1])  # clamp predictions to not fall outside of range
         err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
@@ -90,7 +95,7 @@ class DiffusionModel(nn.Module):
         return loss  # *logsnr integration, see note
 
     @t.no_grad()
-    def test_nll(self, dataloader, npoints=100, delta=None, xinterval=None):
+    def test_nll(self, dataloader, npoints=100, delta=None, xinterval=None, soft=False):
         """Calculate expected NLL on data at test time.  Main difference is that we can clamp the integration
         range, because negative values of MMSE gap we can switch to Gaussian decoder to get zero.
         npoints - number of points to use in integration
@@ -133,7 +138,7 @@ class DiffusionModel(nn.Module):
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta))
+                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft))
                     mses_round_xhat[j] += n_samples * this_mse.cpu()
 
                     # Dequantize
