@@ -225,15 +225,15 @@ def plot_mse_loss():
     # plt.show()
 
 def process_results():
-    # ddpm = np.load('./results/fine_tune/ddpm/results_epoch0.npy', allow_pickle=True).item()
-    # iddpm = np.load('./results/fine_tune/iddpm/results_epoch0.npy', allow_pickle=True).item()
-    # iddpm_tune = np.load('./results/fine_tune/iddpm/results_epoch10.npy', allow_pickle=True).item()
-    # ddpm_tune = np.load('./results/fine_tune/ddpm/results_epoch10.npy', allow_pickle=True).item()
+    ddpm = np.load('./results/fine_tune/ddpm/results_epoch0.npy', allow_pickle=True).item()
+    iddpm = np.load('./results/fine_tune/iddpm/results_epoch0.npy', allow_pickle=True).item()
+    iddpm_tune = np.load('./results/fine_tune/iddpm/results_epoch10.npy', allow_pickle=True).item()
+    ddpm_tune = np.load('./results/fine_tune/ddpm/results_epoch10.npy', allow_pickle=True).item()
 
-    ddpm = np.load('./results/debug/iid_sampler/ddpm/ddpm_results_epoch0_base.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/debug/iid_sampler/iddpm/iddpm_results_epoch0_base.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/debug/iid_sampler/iddpm/iddpm_results_epoch10_base.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/debug/iid_sampler/ddpm/ddpm_results_epoch10_base.npy', allow_pickle=True)[0]
+    # ddpm = np.load('./results/debug/iid_sampler/ddpm/ddpm_results_epoch0_base.npy', allow_pickle=True)[0]
+    # iddpm = np.load('./results/debug/iid_sampler/iddpm/iddpm_results_epoch0_base.npy', allow_pickle=True)[0]
+    # iddpm_tune = np.load('./results/debug/iid_sampler/iddpm/iddpm_results_epoch10_base.npy', allow_pickle=True)[0]
+    # ddpm_tune = np.load('./results/debug/iid_sampler/ddpm/ddpm_results_epoch10_base.npy', allow_pickle=True)[0]
 
     # Properties of data used
     delta = 2. / 255
@@ -329,29 +329,29 @@ def process_results():
         print(disc_bpd_from_mse(wbar, m['mses_round_xhat']))
 
     # calculate variants
-    # print('\n\n\n standard deviation')
-    # def calc_std(var, n, d):
-    #     return math.sqrt(var / n) / d / math.log(2.0)
-    # ddpm_nll_std = calc_std(ddpm['nll (nats) var'], 100, d)
-    # ddpm_nll_dequantize_std = calc_std(ddpm['nll (nats) - dequantize var'], 100, d)
-    # ddpm_nll_discrete_std = calc_std(ddpm['nll-discrete var'], 100, d)
+    print('\n\n\n standard deviation')
+    def calc_std(var, n, d):
+        return math.sqrt(var / n) / d / math.log(2.0)
+    ddpm_nll_std = calc_std(ddpm['nll (nats) var'], 100, d)
+    ddpm_nll_dequantize_std = calc_std(ddpm['nll (nats) - dequantize var'], 100, d)
+    ddpm_nll_discrete_std = calc_std(ddpm['nll-discrete var'], 100, d)
 
-    # ddpm_tune_nll_std = calc_std(ddpm_tune['nll (nats) var'], 100, d)
-    # ddpm_tune_nll_dequantize_std = calc_std(ddpm_tune['nll (nats) - dequantize var'], 100, d)
-    # ddpm_tune_nll_discrete_std = calc_std(ddpm_tune['nll-discrete var'], 100, d)
+    ddpm_tune_nll_std = calc_std(ddpm_tune['nll (nats) var'], 100, d)
+    ddpm_tune_nll_dequantize_std = calc_std(ddpm_tune['nll (nats) - dequantize var'], 100, d)
+    ddpm_tune_nll_discrete_std = calc_std(ddpm_tune['nll-discrete var'], 100, d)
 
-    # iddpm_nll_std = calc_std(iddpm['nll (nats) var'], 100, d)
-    # iddpm_nll_dequantize_std = calc_std(iddpm['nll (nats) - dequantize var'], 100, d)
-    # iddpm_nll_discrete_std = calc_std(iddpm['nll-discrete var'], 100, d)
+    iddpm_nll_std = calc_std(iddpm['nll (nats) var'], 100, d)
+    iddpm_nll_dequantize_std = calc_std(iddpm['nll (nats) - dequantize var'], 100, d)
+    iddpm_nll_discrete_std = calc_std(iddpm['nll-discrete var'], 100, d)
 
-    # iddpm_tune_nll_std = calc_std(iddpm_tune['nll (nats) var'], 100, d)
-    # iddpm_tune_nll_dequantize_std = calc_std(iddpm_tune['nll (nats) - dequantize var'], 100, d)
-    # iddpm_tune_nll_discrete_std = calc_std(iddpm_tune['nll-discrete var'], 100, d)
+    iddpm_tune_nll_std = calc_std(iddpm_tune['nll (nats) var'], 100, d)
+    iddpm_tune_nll_dequantize_std = calc_std(iddpm_tune['nll (nats) - dequantize var'], 100, d)
+    iddpm_tune_nll_discrete_std = calc_std(iddpm_tune['nll-discrete var'], 100, d)
 
-    # print('DDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_nll_std, ddpm_nll_discrete_std, ddpm_nll_dequantize_std))
-    # print('IDDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_nll_std, iddpm_nll_discrete_std, iddpm_nll_dequantize_std))
-    # print('DDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_tune_nll_std, ddpm_tune_nll_discrete_std, ddpm_tune_nll_dequantize_std))
-    # print('IDDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_tune_nll_std, iddpm_tune_nll_discrete_std, iddpm_tune_nll_dequantize_std))
+    print('DDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_nll_std, ddpm_nll_discrete_std, ddpm_nll_dequantize_std))
+    print('IDDPM - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_nll_std, iddpm_nll_discrete_std, iddpm_nll_dequantize_std))
+    print('DDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(ddpm_tune_nll_std, ddpm_tune_nll_discrete_std, ddpm_tune_nll_dequantize_std))
+    print('IDDPM-tune - nll (bpd) std: {:.2f}, nll-discrete (bpd) std: {:.2f}, nll (bpd) - dequantize std: {:.2f}'.format(iddpm_tune_nll_std, iddpm_tune_nll_discrete_std, iddpm_tune_nll_dequantize_std))
 
 def main():
     # plot_mse_loss()
