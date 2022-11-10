@@ -522,25 +522,6 @@ class UNetModel(nn.Module):
             result["up"].append(h.type(x.dtype))
         return result
 
-
-class WrapUNetModel(UNetModel):
-    """Wrap UNetModel to accept arguments compatible with Diffusion Model."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def forward(self, z, snr):
-        x = z[0] # uncondition model 
-        timestep = self.logsnr2t(th.log(snr))
-        model_output = super().forward(x, timestep)
-        C = model_output.shape[1] // 2
-        eps_hat = th.split(model_output, C, dim=1)[0]
-        return eps_hat
-
-    def logsnr2t(self, logsnr, s=0.008, total_steps=1000):
-        timestep = total_steps * (th.acos(th.cos(th.tensor(s / (s + 1) * math.pi / 2)) * th.sqrt(th.sigmoid(logsnr))) * 2 * (1 + s) / math.pi - s)
-        return timestep
-
-
 class SuperResModel(UNetModel):
     """
     A UNetModel that performs super-resolution.
@@ -564,15 +545,65 @@ class SuperResModel(UNetModel):
         return super().get_feature_vectors(x, timesteps, **kwargs)
 
 
+class Soft(nn.Module):
+    """Discretize x_hat to its rounded value."""
+    def __init__(self):
+        super().__init__()
+        # self.a0 = nn.Parameter(th.randn(1))
+        # self.a1 = nn.Parameter(th.randn(1))
+        # self.a2 = nn.Parameter(th.randn(1))
+
+    def forward(self, z, eps_hat, snr, xinterval=(-1, 1), delta=1./127.5):
+        ndim = len(z.shape)
+        left = (-1,) + (1,) * (ndim - 1)
+        snr = snr.view(left)
+        x_hat = th.sqrt(1 + 1 / snr) * z - eps_hat * th.sqrt(1 / snr)
+        bins = th.linspace(xinterval[0], xinterval[1], 1 + int((xinterval[1]-xinterval[0])/delta), device=x_hat.device)
+        bins = bins.reshape(left + (1,))
+        ps = F.softmax(-0.5 * th.square(x_hat - bins) * (1 + snr), dim=0)
+        # ps = F.softmax(-0.5 * th.square(x_hat - bins) * (self.a0 + self.a1*snr + self.a2*snr**2), dim=0) # snr control is a polynomial estiamtion
+        return (bins * ps).sum(dim=0)
+
+
+class WrapUNetModel(UNetModel):
+    """Wrap UNetModel to accept arguments compatible with Diffusion Model."""
+    def __init__(self, soft, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.soft = soft
+        self.soft_round = Soft()
+
+    def forward(self, z, snr):
+        x = z[0] # uncondition model 
+        timestep = self.logsnr2t(th.log(snr))
+        model_output = super().forward(x, timestep)
+        C = model_output.shape[1] // 2
+        eps_hat = th.split(model_output, C, dim=1)[0]
+        if self.soft:
+            x_hat = self.soft_round(x, eps_hat, snr)
+            left = (-1,) + (1,) * len(x_hat.shape)
+            eps_hat = th.sqrt(1 + snr.view(left)) * x - th.sqrt(snr.view(left)) * x_hat
+        return eps_hat
+
+    def logsnr2t(self, logsnr, s=0.008, total_steps=1000):
+        timestep = total_steps * (th.acos(th.cos(th.tensor(s / (s + 1) * math.pi / 2)) * th.sqrt(th.sigmoid(logsnr))) * 2 * (1 + s) / math.pi - s)
+        return timestep
+
+
 class WrapUNet2DModel(UNet2DModel):
     """Wrap UNet2DModel to accept arguments compatible with Diffusion Model."""
-    def __init__(self, *args, **kwargs):
+    def __init__(self, soft, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.soft = soft
+        self.soft_round = Soft()
 
     def forward(self, z, snr):
         x = z[0] # uncondition model 
         timestep = self.logsnr2t(th.log(snr))
         eps_hat = super().forward(x, timestep)["sample"]
+        if self.soft:
+            x_hat = self.soft_round(x, eps_hat, snr)
+            left = (-1,) + (1,) * len(x[0].shape)
+            eps_hat = th.sqrt(1 + snr.view(left)) * x - th.sqrt(snr.view(left)) * x_hat
         return eps_hat
 
     def logsnr2t(self, logsnr):

@@ -24,6 +24,7 @@ def model_and_diffusion_defaults():
         dropout=0.0,
         wrapped=False,
         iddpm=True,
+        soft=False,
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
@@ -52,6 +53,7 @@ def create_model_and_diffusion(
     dropout,
     wrapped,
     iddpm,
+    soft,
     diffusion_steps,
     noise_schedule,
     timestep_respacing,
@@ -76,6 +78,7 @@ def create_model_and_diffusion(
         dropout=dropout,
         wrapped=wrapped,
         iddpm=iddpm,
+        soft=soft,
     )
     diffusion = create_information_theoretic_diffusion(
         model=model,
@@ -97,6 +100,7 @@ def create_model(
     dropout,
     wrapped,
     iddpm,
+    soft,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -114,6 +118,7 @@ def create_model(
         if iddpm:
             print("Use wrapped IDDPM model...")
             return WrapUNetModel(
+                soft=soft,
                 in_channels=3,
                 model_channels=num_channels,
                 out_channels=(3 if not learn_sigma else 6),
@@ -131,7 +136,7 @@ def create_model(
             print("Use wrapped DDPM model(Hugging Face)...")
             f = open("/home/theo/Research/checkpoints/ddpm_cifar10_32/config.json")
             model_config = json.load(f)
-            return WrapUNet2DModel(**model_config)
+            return WrapUNet2DModel(soft=soft, **model_config)
     else:
         if iddpm:
             print("Use original IDDPM model...")
