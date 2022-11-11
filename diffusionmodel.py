@@ -9,8 +9,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
 
-import utils
-from utils import logistic_integrate
+from utilsiddpm import utils
+from utilsiddpm.utils import logistic_integrate
 from utilsiddpm import logger
 
 class DiffusionModel(nn.Module):
@@ -108,14 +108,14 @@ class DiffusionModel(nn.Module):
         results = {}  # Return multiple forms of results in a dictionary
         clip = self.clip 
         loc, scale = self.loc_scale
-        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device='cpu', deterministic=True)
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
-        w = w[idx]
+        w = w[idx].to('cpu')
 
         results['logsnr'] = logsnr.to('cpu')
-        results['w'] = w.to('cpu')
+        results['w'] = w
         mses, mses_dequantize, mses_round_xhat = [], [], []  # Store all MSEs, per sample, logsnr, in an array
         total_samples = 0
         val_loss = 0
@@ -140,7 +140,7 @@ class DiffusionModel(nn.Module):
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon').cpu()
                     mses_round_xhat[-1][:, j] = this_mse
 
                     # Dequantize
@@ -164,6 +164,7 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr.to(self.device)).to('cpu')
 
+        import IPython; IPython.embed()
         results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses, 0.))
         results['nll (nats) - dequantize'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses_dequantize, 0.))
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
@@ -184,9 +185,9 @@ class DiffusionModel(nn.Module):
         # n_samples is number of x samples * number of logsnr samples per x
         inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region
         n_samples = results['mses-all'].numel()
-        wp = w[inds]
+        wp = w[inds].to('cpu')
         results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
-        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples
+        results['nll-discrete (nats) - var'] = t.var(0.5 * wp * results['mses_round_xhat-all']) / n_samples
         results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
         results['nll (bpd) - std'] = t.sqrt(results['nll (nats) - var']) / math.log(2) / self.d
         results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d

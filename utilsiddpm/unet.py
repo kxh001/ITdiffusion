@@ -549,8 +549,8 @@ class Soft(nn.Module):
     """Discretize x_hat to its rounded value."""
     def __init__(self):
         super().__init__()
-        # self.a0 = nn.Parameter(th.randn(1))
-        # self.a1 = nn.Parameter(th.randn(1))
+        # self.a0 = nn.Parameter(th.tensor(1.))
+        # self.a1 = nn.Parameter(th.tensor(1.))
         # self.a2 = nn.Parameter(th.randn(1))
 
     def forward(self, z, eps_hat, snr, xinterval=(-1, 1), delta=1./127.5):
@@ -580,7 +580,7 @@ class WrapUNetModel(UNetModel):
         eps_hat = th.split(model_output, C, dim=1)[0]
         if self.soft:
             x_hat = self.soft_round(x, eps_hat, snr)
-            left = (-1,) + (1,) * len(x_hat.shape)
+            left = (-1,) + (1,) * len(x[0].shape)
             eps_hat = th.sqrt(1 + snr.view(left)) * x - th.sqrt(snr.view(left)) * x_hat
         return eps_hat
 
