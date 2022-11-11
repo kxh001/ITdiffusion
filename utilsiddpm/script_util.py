@@ -134,7 +134,7 @@ def create_model(
             )
         else:
             print("Use wrapped DDPM model(Hugging Face)...")
-            f = open("/home/theo/Research/checkpoints/ddpm_cifar10_32/config.json")
+            f = open("C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/config.json")
             model_config = json.load(f)
             return WrapUNet2DModel(soft=soft, **model_config)
     else:
@@ -156,7 +156,7 @@ def create_model(
             )
         else:
             print("Use original DDPM model(Hugging Face)...")
-            f = open("/home/theo/Research/checkpoints/ddpm_cifar10_32/config.json")
+            f = open("C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/config.json")
             model_config = json.load(f)
             return UNet2DModel(**model_config)
 

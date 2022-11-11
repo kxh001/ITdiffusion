@@ -9,8 +9,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
 
-import utils
-from utils import logistic_integrate
+from utilsiddpm import utils
+from utilsiddpm.utils import logistic_integrate
 from utilsiddpm import logger
 
 class DiffusionModel(nn.Module):
@@ -108,7 +108,7 @@ class DiffusionModel(nn.Module):
         results = {}  # Return multiple forms of results in a dictionary
         clip = self.clip 
         loc, scale = self.loc_scale
-        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device='cpu', deterministic=True)
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
@@ -140,7 +140,7 @@ class DiffusionModel(nn.Module):
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon').cpu()
                     mses_round_xhat[-1][:, j] = this_mse
 
                     # Dequantize
