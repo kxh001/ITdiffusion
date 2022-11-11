@@ -9,8 +9,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
 
-import utils
-from utils import logistic_integrate
+from utilsiddpm import utils
+from utilsiddpm.utils import logistic_integrate
 from utilsiddpm import logger
 
 class DiffusionModel(nn.Module):
@@ -45,7 +45,7 @@ class DiffusionModel(nn.Module):
 
     def mse(self, batch, logsnr, mse_type='epsilon', xinterval=None, delta=None, soft=False):
         """Return MSE curve either conditioned or not on y.
-        x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
+        x_hat = z/sqrt(snr) - eps_hat(z, snr)/sqrt(snr),
         so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
         And we actually reparametrize eps_hat to depend on eps(z/sqrt(1+snr), snr)
         Options are:
@@ -138,7 +138,8 @@ class DiffusionModel(nn.Module):
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft))
+                    this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon'))
+                    # this_mse = t.mean(self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft))
                     mses_round_xhat[j] += n_samples * this_mse.cpu()
 
                     # Dequantize
@@ -265,20 +266,20 @@ class DiffusionModel(nn.Module):
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
             if iddpm:
-                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/iddpm/model_epoch{i}.pt') # save model
+                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/fine_tune_soft/iddpm/model_epoch{i}.pt') # save model
             else:
-                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/ddpm/model_epoch{i}.pt') # save model
+                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/fine_tune_soft/ddpm/model_epoch{i}.pt') # save model
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
                 print("testing ...")
                 self.eval()
                 with t.no_grad():
-                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
                     if iddpm:
-                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm/results_epoch{i}_base.npy", results) # save test results
+                        np.save(f"/home/theo/Research_Results/debug/soft_round/iddpm/results_epoch{i}_base.npy", results) # save test results
                     else:
-                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/ddpm/results_epoch{i}_base.npy", results) # save test results
+                        np.save(f"/home/theo/Research_Results/debug/soft_round/ddpm/results_epoch{i}_base.npy", results) # save test results
                     self.log_function(val_loss=val_loss, results=results)
 
             if verbose:
