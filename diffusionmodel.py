@@ -112,7 +112,7 @@ class DiffusionModel(nn.Module):
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
-        w = w[idx].to(cpu())
+        w = w[idx].to('cpu')
 
         results['logsnr'] = logsnr.to('cpu')
         results['w'] = w
@@ -185,7 +185,7 @@ class DiffusionModel(nn.Module):
         # n_samples is number of x samples * number of logsnr samples per x
         inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region
         n_samples = results['mses-all'].numel()
-        wp = w[inds].to(cpu)
+        wp = w[inds].to('cpu')
         results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
         results['nll-discrete (nats) - var'] = t.var(0.5 * wp * results['mses_round_xhat-all']) / n_samples
         results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
