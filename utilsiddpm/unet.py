@@ -549,8 +549,8 @@ class Soft(nn.Module):
     """Discretize x_hat to its rounded value."""
     def __init__(self):
         super().__init__()
-        # self.a0 = nn.Parameter(th.randn(1))
-        # self.a1 = nn.Parameter(th.randn(1))
+        # self.a0 = nn.Parameter(th.tensor(1.))
+        # self.a1 = nn.Parameter(th.tensor(1.))
         # self.a2 = nn.Parameter(th.randn(1))
 
     def forward(self, z, eps_hat, snr, xinterval=(-1, 1), delta=1./127.5):
