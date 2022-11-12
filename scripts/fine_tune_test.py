@@ -79,14 +79,18 @@ def main():
         logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
         logger.log(f"evaluating on {args.npoints} points...")
-        results, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
-        
+        results, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=False)
+        print(results)
+        results2, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
+        print(results2)
+        np.save(f'./results/fine_tune/iddpm_hybrid/toy/fine_tune_test/results_epoch{mname[11:-3]}_hard.npy', results)
+        np.save(f'./results/fine_tune/iddpm_hybrid/toy/fine_tune_test/results_epoch{mname[11:-3]}_soft.npy', results2)
         # import IPython; IPython.embed()
 
-        if args.iddpm:
-            np.save(f'./results/fine_tune/iddpm_hybrid/results_epoch{mname[11:-3]}.npy', [results, val_loss])
-        else:
-            np.save(f'./results/debug/soft_discretization/ddpm/results_epoch{mname[11:-3]}.npy', [results, val_loss])
+        # if args.iddpm:
+        #     np.save(f'./results/fine_tune/iddpm_hybrid/results_epoch{mname[11:-3]}.npy', [results, val_loss])
+        # else:
+        #     np.save(f'./results/debug/soft_discretization/ddpm/results_epoch{mname[11:-3]}.npy', [results, val_loss])
         logger.log('epoch: {}\t val loss: {:0.4f}'.format(mname[11:-3], val_loss))
         logger.log('nll (nats): {:0.4f}\t nll (bpd): {:0.4f}\t nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'
                   .format(results['nll (nats)'],
