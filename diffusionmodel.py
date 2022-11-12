@@ -164,7 +164,6 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr.to(self.device)).to('cpu')
 
-        import IPython; IPython.embed()
         results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses, 0.))
         results['nll (nats) - dequantize'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses_dequantize, 0.))
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
@@ -183,11 +182,11 @@ class DiffusionModel(nn.Module):
 
         # Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
         # n_samples is number of x samples * number of logsnr samples per x
-        inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region
+        inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region (for continuous estimators)
         n_samples = results['mses-all'].numel()
         wp = w[inds].to('cpu')
         results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
-        results['nll-discrete (nats) - var'] = t.var(0.5 * wp * results['mses_round_xhat-all']) / n_samples
+        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
         results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
         results['nll (bpd) - std'] = t.sqrt(results['nll (nats) - var']) / math.log(2) / self.d
         results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d
