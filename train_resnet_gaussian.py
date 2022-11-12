@@ -9,7 +9,7 @@ import os
 
 # Internal imports
 from nets import SimpleResNet
-from utils import CustomDataset, viz
+from utilsiddpm.utils import CustomDataset, viz
 from diffusionmodel import DiffusionModel
 
 device = "cuda" if t.cuda.is_available() else "cpu"
