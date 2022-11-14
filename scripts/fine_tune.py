@@ -71,21 +71,20 @@ def main():
 
     logger.log("save results...")
     if args.iddpm:
-        out_path = f"/media/theo/Data/checkpoints/fine_tune_soft/iddpm"
+        out_path = f"D:/checkpoints/fine_tune_soft_new/iddpm"
     else:
-        out_path = f"/media/theo/Data/checkpoints/fine_tune_soft/ddpm"
+        out_path = f"D:/checkpoints/fine_tune_soft_new/ddpm"
     np.save(os.path.join(out_path,"train_loss_all.npy"), diffusion.logs['train loss'])
     if args.is_test:
         np.save(os.path.join(out_path,"test_loss_all.npy"), diffusion.logs['val loss'])
 
 def create_argparser():
     defaults = dict(
-        data_train_dir='/home/theo/Research/datasets/cifar_train',
-        data_test_dir='/home/theo/Research/datasets/cifar_test',  
+        data_train_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_train',
+        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_test',  
         train_batch_size=128, 
         test_batch_size=256,
-        model_path="/home/theo/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt", 
-        # covar_path='/home/theo/Research/ITD/diffusion/covariance/cifar_covariance.pt', 
+        model_path="C:/Users/72809/Desktop/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt", 
         lr =2e-4,
         epoch=10,
         iddpm = True,
