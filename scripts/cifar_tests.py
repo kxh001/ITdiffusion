@@ -75,7 +75,7 @@ def main():
     )
 
     # # I changed the hard coded train location for my system, should come up with better solution
-    train_loc = '../data/cifar_train'
+    train_loc = '../../datasets/cifar_train'
     data_train = load_data(
         data_dir = train_loc,
         batch_size = 50000,
@@ -85,17 +85,19 @@ def main():
 
     logger.log("calculate integral bound...")
     diffusion = dm.DiffusionModel(model)
-    covariance = t.load('cifar_covariance.pt')  # Load cached spectrum for speed
+    covariance = t.load('./scripts/cifar_covariance.pt')  # Load cached spectrum for speed
     covariance = [q.to(dist_util.dev()) for q in covariance]
     log_eigs = covariance[2]
     diffusion.dataset_info(data_train, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("Testing test_nll code")
-    results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    results, _ = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
     print(results)
-    results2 = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
+    results2, _ = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
     print(results2)
+    np.save(f'./results/fine_tune/iddpm_hybrid/toy/cifar_test/results_epoch0_hard.npy', results)
+    np.save(f'./results/fine_tune/iddpm_hybrid/toy/cifar_test/results_epoch0_soft.npy', results2)
     import IPython; IPython.embed()
 
     logger.log("Generating samples")

@@ -140,7 +140,7 @@ class DiffusionModel(nn.Module):
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon').cpu()
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
                     mses_round_xhat[-1][:, j] = this_mse
 
                     # Dequantize
@@ -164,7 +164,6 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr.to(self.device)).to('cpu')
 
-        import IPython; IPython.embed()
         results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses, 0.))
         results['nll (nats) - dequantize'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses_dequantize, 0.))
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
@@ -187,7 +186,7 @@ class DiffusionModel(nn.Module):
         n_samples = results['mses-all'].numel()
         wp = w[inds].to('cpu')
         results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
-        results['nll-discrete (nats) - var'] = t.var(0.5 * wp * results['mses_round_xhat-all']) / n_samples
+        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples
         results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
         results['nll (bpd) - std'] = t.sqrt(results['nll (nats) - var']) / math.log(2) / self.d
         results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d
@@ -283,9 +282,9 @@ class DiffusionModel(nn.Module):
             if not verbose:
               logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
             if iddpm:
-                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/iddpm/model_epoch{i}.pt') # save model
+                t.save(self.model.state_dict(), f'D:/checkpoints/fine_tune_soft_new/iddpm/model_epoch{i}.pt') # save model
             else:
-                t.save(self.model.state_dict(), f'/media/theo/Data/checkpoints/iid_sampler/ddpm/model_epoch{i}.pt') # save model
+                t.save(self.model.state_dict(), f'D:/checkpoints/fine_tune_soft_new/ddpm/model_epoch{i}.pt') # save model
             self.log_function(train_loss=train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
