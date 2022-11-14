@@ -7,8 +7,8 @@ import torch as t
 import matplotlib.pyplot as plt
 
 # Internal imports
-from nets import LinNet, SimpleResNet, GaussTrueMMSE
-from utils import CustomDataset, viz, trunc_normal_integrate, logistic_integrate
+from nets import GaussTrueMMSE
+from utilsiddpm.utils import CustomDataset, viz, trunc_normal_integrate, logistic_integrate
 from diffusionmodel import DiffusionModel
 
 device = "cuda" if t.cuda.is_available() else "cpu"

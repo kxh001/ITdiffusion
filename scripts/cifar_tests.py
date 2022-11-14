@@ -70,7 +70,7 @@ def main():
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
-        deterministic=False,  # Generating MMSE curves with subset, better to use random subset
+        deterministic=True,  # Generating MMSE curves with subset, better to use random subset
         # subset=101
     )
 

@@ -1,8 +1,9 @@
 import numpy as np
 import torch as t
-import sys, os
+import sys
+
 sys.path.append('..')
-from utils import logistic_integrate
+from utilsiddpm.utils import logistic_integrate
 from functools import reduce
 import matplotlib.pyplot as plt
 import math
