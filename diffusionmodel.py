@@ -195,7 +195,7 @@ class DiffusionModel(nn.Module):
         return results, val_loss
 
     @t.no_grad()
-    def test_nll_disc(self, dataloader, npoints=100, delta=None, xinterval=None, soft=True):
+    def test_nll_disc(self, dataloader, npoints=100, delta=None, xinterval=None, soft=True, max_x_samples=100):
         """Calculate expected NLL on data at test time.
          Main difference is that we use a different importance sampling distribution for discrete,
          and integrate in snr, rather than logsnr
@@ -209,44 +209,39 @@ class DiffusionModel(nn.Module):
         results = {}  # Return multiple forms of results in a dictionary
         clip = self.clip
         loc, scale = self.loc_scale
-        lam = 1. / 2000. # determined via moment matching for CIFAR dataset - should change to general calc.
-        snr, w = trunc_inv_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
+        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
         # sort logsnrs along with weights
-        snr, idx = snr.sort()
+        logsnr, idx = logsnr.sort()
         w = w[idx].to('cpu')
 
-        results['snr'] = snr.to('cpu')
+        results['logsnr'] = logsnr.to('cpu')
         results['w'] = w
         mses, mses_round_xhat = [], []  # Store all MSEs, per sample, logsnr, in an array
-        total_samples = 0
         val_loss = 0
-        for batch in tqdm(dataloader):
-            data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
-            n_samples = len(data)
-            total_samples += n_samples
+        for j, this_logsnr in tqdm(enumerate(logsnr), total=len(logsnr)):
+            mses.append([])
+            mses_round_xhat.append([])
+            total_samples = 0
+            for batch in dataloader:
+                if total_samples > max_x_samples:
+                    break
+                data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
+                n_samples = len(data)
+                total_samples += n_samples
 
-            val_loss += self.nll([data, ] + batch[1:], xinterval=xinterval).cpu() * n_samples
-
-            mses.append(t.zeros(n_samples, len(snr)))
-            mses_round_xhat.append(t.zeros(n_samples, len(snr)))
-            for j, this_snr in enumerate(snr):
-                this_logsnr = t.log(this_snr)
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
                 # Regular MSE, clamps predictions, but does not discretize
-                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='x', xinterval=xinterval).cpu()
-                mses[-1][:, j] = this_mse
+                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval).cpu()
+                mses[-1].append(this_mse)
 
-                if delta:
-                    # MSE for estimator that rounds using x_hat
-                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='x', xinterval=xinterval, delta=delta, soft=soft).cpu()
-                    mses_round_xhat[-1][:, j] = this_mse
+                # MSE for estimator that rounds using x_hat
+                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                mses_round_xhat[-1].append(this_mse)
 
-        val_loss /= total_samples
-
-        mses = t.cat(mses, dim=0)  # Concatenate the batches together across axis 0
-        mses_round_xhat = t.cat(mses_round_xhat, dim=0)
+        mses = t.stack([t.cat(this_mse, dim=0) for this_mse in mses], dim=1)  # Concatenate the batches together across axis 0
+        mses_round_xhat = t.stack([t.cat(this_mse, dim=0) for this_mse in mses_round_xhat], dim=1)
         results['mses-all'] = mses  # Store array of mses for each sample, logsnr
         results['mses_round_xhat-all'] = mses_round_xhat
         mses = mses.mean(dim=0)  # Average across samples, giving MMSE(snr)

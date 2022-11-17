@@ -70,12 +70,12 @@ def main():
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
-        deterministic=True,  # Generating MMSE curves with subset, better to use random subset
-        # subset=101
+        deterministic=False,  # Generating MMSE curves with subset, better to use random subset
+        # subset=100
     )
 
     # # I changed the hard coded train location for my system, should come up with better solution
-    train_loc = '../../datasets/cifar_train'
+    train_loc = '../data/cifar_train'
     data_train = load_data(
         data_dir = train_loc,
         batch_size = 50000,
@@ -85,19 +85,23 @@ def main():
 
     logger.log("calculate integral bound...")
     diffusion = dm.DiffusionModel(model)
-    covariance = t.load('./scripts/cifar_covariance.pt')  # Load cached spectrum for speed
+    covariance = t.load('cifar_covariance.pt')  # Load cached spectrum for speed
     covariance = [q.to(dist_util.dev()) for q in covariance]
     log_eigs = covariance[2]
     diffusion.dataset_info(data_train, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
     logger.log("Testing test_nll code")
-    results, _ = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    # results = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+    # print(results)
+    # with t.no_grad():
+    #     for batch in tqdm(data):
+    #         result_nll = diffusion.nll_disc([batch[0].to('cuda')], logsnr_samples_per_x=100, xinterval=(-1,1), delta=1./127.5, soft=True)
+    # import IPython; IPython.embed()
+    results, val_loss = diffusion.test_nll_disc(data, npoints=1000, delta=1./127.5, xinterval=(-1, 1), soft=True, max_x_samples=1000)
     print(results)
-    results2, _ = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
-    print(results2)
-    np.save(f'./results/fine_tune/iddpm_hybrid/toy/cifar_test/results_epoch0_hard.npy', results)
-    np.save(f'./results/fine_tune/iddpm_hybrid/toy/cifar_test/results_epoch0_soft.npy', results2)
+#    results2, val_loss = diffusion.test_nll(data, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
+#    print(results2)
     import IPython; IPython.embed()
 
     logger.log("Generating samples")

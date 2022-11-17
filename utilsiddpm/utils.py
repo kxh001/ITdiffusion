@@ -104,18 +104,19 @@ def logistic_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic
     return logsnr, weights
 
 
-def trunc_inv_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False):
+def trunc_inv_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False, eps=0.):
     """Return sample point and weights for integration, using
     a truncated distribution proportional to 1 / (1+snr) as the base, and importance weights.
     loc, scale, clip  - are same as for continuous density estimator, just used to fix the range
+    parameter, eps=1 is the form implied by optimal Gaussian MMSE at low SNR.
+    True MMSE drops faster, so we use a smaller constant
     """
     loc, scale, clip = t.tensor(loc, device=device), t.tensor(scale, device=device), t.tensor(clip, device=device)
     left_snr, right_snr = t.exp(loc - clip * scale), t.exp(loc + clip * scale)  # truncated range
-    eps = 1.  # parameter, eps=1 is the form implied by optimal Gaussian MMSE at low SNR.
 
     # IID samples from uniform, use inverse CDF to transform to target distribution
     if deterministic:
-        t.manual_seed(2)
+        t.manual_seed(0)
     ps = t.rand(npoints, dtype=loc.dtype, device=device)
     Z = t.log(eps + right_snr) - t.log(eps + left_snr)  # normalization constant
     snr = (eps + left_snr) * t.exp(Z * ps) - eps  # Use quantile function
@@ -145,7 +146,7 @@ def soft_round(x, snr, xinterval, delta):
     ndim = len(x.shape)
     bins = t.linspace(xinterval[0], xinterval[1], 1 + int((xinterval[1]-xinterval[0])/delta), device=x.device)
     bins = bins.reshape((-1,) + (1,) * ndim)
-    ps = t.nn.functional.softmax(-0.5 * t.square(x - bins) * (1+snr), dim=0)
+    ps = t.nn.functional.softmax(-0.5 * t.square(x - bins) * (1 + snr), dim=0)
     return (bins * ps).sum(dim=0)
 
 def viz_soft_round():
