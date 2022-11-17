@@ -89,22 +89,40 @@ def trunc_normal_integrate(npoints, loc, scale, clip=3, device='cpu'):
 def logistic_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False):
     """Return sample point and weights for integration, using
     a truncated logistic distribution as the base, and importance weights.
-    Sample points are low discrepancy, as in Variational Diffusion Models paper.
     """
     loc, scale, clip = t.tensor(loc, device=device), t.tensor(scale, device=device), t.tensor(clip, device=device)
 
     # IID samples from uniform, use inverse CDF to transform to target distribution
     if deterministic:
         t.manual_seed(0)
-        ps = t.rand(npoints, dtype=loc.dtype, device=device)
-    else:
-        ps = t.rand(npoints, dtype=loc.dtype, device=device)
+    ps = t.rand(npoints, dtype=loc.dtype, device=device)
     ps = t.sigmoid(-clip) + (t.sigmoid(clip) - t.sigmoid(-clip)) * ps  # Scale quantiles to clip
     logsnr = loc + scale * t.logit(ps)  # Using quantile function for logistic distribution
 
     # importance weights
     weights = scale * t.tanh(clip / 2) / (t.sigmoid((logsnr - loc)/scale) * t.sigmoid(-(logsnr - loc)/scale))
     return logsnr, weights
+
+
+def trunc_inv_integrate(npoints, loc, scale, clip=4., device='cpu', deterministic=False):
+    """Return sample point and weights for integration, using
+    a truncated distribution proportional to 1 / (1+snr) as the base, and importance weights.
+    loc, scale, clip  - are same as for continuous density estimator, just used to fix the range
+    """
+    loc, scale, clip = t.tensor(loc, device=device), t.tensor(scale, device=device), t.tensor(clip, device=device)
+    left_snr, right_snr = t.exp(loc - clip * scale), t.exp(loc + clip * scale)  # truncated range
+    eps = 1.  # parameter, eps=1 is the form implied by optimal Gaussian MMSE at low SNR.
+
+    # IID samples from uniform, use inverse CDF to transform to target distribution
+    if deterministic:
+        t.manual_seed(2)
+    ps = t.rand(npoints, dtype=loc.dtype, device=device)
+    Z = t.log(eps + right_snr) - t.log(eps + left_snr)  # normalization constant
+    snr = (eps + left_snr) * t.exp(Z * ps) - eps  # Use quantile function
+
+    # importance weights
+    weights = Z * (eps + snr)
+    return snr, weights
 
 
 def plot_image(img_coll, num_samples, logsnrs):
@@ -154,7 +172,9 @@ def viz_soft_round():
 
     # And a corresponding grid
     ax.set_aspect(0.5)
+    ax.set_xlabel('$z$')
+    ax.set_ylabel('soft-disc($z$, SNR)')
     ax.grid(which='both', linestyle='--', linewidth=0.3)
     ax.legend()
-    fig.set_tight_layout()
-    fig.savefig('soft_round_plot.png')
+    fig.set_tight_layout(True)
+    fig.savefig('soft_round_plot.pdf',bbox_inches='tight')

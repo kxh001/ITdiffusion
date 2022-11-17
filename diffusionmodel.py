@@ -10,7 +10,7 @@ from tqdm import tqdm
 from numpy import interp
 
 from utilsiddpm import utils
-from utilsiddpm.utils import logistic_integrate
+from utilsiddpm.utils import logistic_integrate, trunc_inv_integrate
 from utilsiddpm import logger
 
 class DiffusionModel(nn.Module):
@@ -192,6 +192,82 @@ class DiffusionModel(nn.Module):
         results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d
         results['nll-discrete (bpd) - std'] = t.sqrt(results['nll-discrete (nats) - var']) / math.log(2) / self.d
 
+        return results, val_loss
+
+    @t.no_grad()
+    def test_nll_disc(self, dataloader, npoints=100, delta=None, xinterval=None, soft=True):
+        """Calculate expected NLL on data at test time.
+         Main difference is that we use a different importance sampling distribution for discrete,
+         and integrate in snr, rather than logsnr
+        npoints - number of points to use in integration
+        delta - if the data is discrete, delta is the gap between discrete values.
+        E.g. delta = 1/127.5 for CIFAR data (0, 255) scaled to -1, 1 range
+        range = a tuple of the range of the discrete values, e.g. (-1, 1) for CIFAR10 normalized
+        """
+        if self.model.training:
+            print("Warning - estimating test NLL but model is in train mode")
+        results = {}  # Return multiple forms of results in a dictionary
+        clip = self.clip
+        loc, scale = self.loc_scale
+        lam = 1. / 2000. # determined via moment matching for CIFAR dataset - should change to general calc.
+        snr, w = trunc_inv_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
+        left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
+        # sort logsnrs along with weights
+        snr, idx = snr.sort()
+        w = w[idx].to('cpu')
+
+        results['snr'] = snr.to('cpu')
+        results['w'] = w
+        mses, mses_round_xhat = [], []  # Store all MSEs, per sample, logsnr, in an array
+        total_samples = 0
+        val_loss = 0
+        for batch in tqdm(dataloader):
+            data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
+            n_samples = len(data)
+            total_samples += n_samples
+
+            val_loss += self.nll([data, ] + batch[1:], xinterval=xinterval).cpu() * n_samples
+
+            mses.append(t.zeros(n_samples, len(snr)))
+            mses_round_xhat.append(t.zeros(n_samples, len(snr)))
+            for j, this_snr in enumerate(snr):
+                this_logsnr = t.log(this_snr)
+                this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
+
+                # Regular MSE, clamps predictions, but does not discretize
+                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='x', xinterval=xinterval).cpu()
+                mses[-1][:, j] = this_mse
+
+                if delta:
+                    # MSE for estimator that rounds using x_hat
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='x', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                    mses_round_xhat[-1][:, j] = this_mse
+
+        val_loss /= total_samples
+
+        mses = t.cat(mses, dim=0)  # Concatenate the batches together across axis 0
+        mses_round_xhat = t.cat(mses_round_xhat, dim=0)
+        results['mses-all'] = mses  # Store array of mses for each sample, logsnr
+        results['mses_round_xhat-all'] = mses_round_xhat
+        mses = mses.mean(dim=0)  # Average across samples, giving MMSE(snr)
+        mses_round_xhat = mses_round_xhat.mean(dim=0)
+
+        results['mses'] = mses
+        results['mses_round_xhat'] = mses_round_xhat
+
+        # Upper bound on direct estimate of -log P(x) for discrete x
+        left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum().cpu()
+        j_max = int((xinterval[1] - xinterval[0]) / delta)
+        right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
+        mses_min = t.minimum(mses, mses_round_xhat)
+        results['nll-discrete'] = t.mean(0.5 * (w * mses_min) + right_tail + left_tail)
+        results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
+
+        # Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
+        # n_samples is number of x samples * number of logsnr samples per x
+        n_samples = results['mses-all'].numel()
+        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
+        results['nll-discrete (bpd) - std'] = t.sqrt(results['nll-discrete (nats) - var']) / math.log(2) / self.d
         return results, val_loss
 
 
