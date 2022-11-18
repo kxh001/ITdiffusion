@@ -224,12 +224,14 @@ def plot_mse_loss():
     # plt.show()
 
 def process_results():
-    ddpm = np.load('./results/variance/ddpm/results_epoch0.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/variance/iddpm/results_epoch0.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/variance/ddpm/results_epoch10.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/variance/iddpm/results_epoch10.npy', allow_pickle=True)[0]
+    ddpm = np.load('./results/fine_tune/ddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/fine_tune/iddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/fine_tune/ddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/fine_tune/iddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
     # iddpm_tune_soft = np.load('./results/variance/iddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
     # ddpm_tune_soft = np.load('./results/variance/ddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
+
+    import IPython; IPython.embed()
 
     # Properties of data used
     delta = 2. / 255
@@ -250,8 +252,11 @@ def process_results():
         nll_nats = h_g - 0.5 * (w * (mmse_g.cpu() - mses.cpu())).mean()
         return nll_nats / math.log(2) / d
 
-    def disc_bpd_from_mse(logsnr, mses):
-        return 0.5 * t.trapz(mses, logsnr) / math.log(2) / d
+    # def disc_bpd_from_mse(logsnr, mses):
+    #     return 0.5 * t.trapz(mses, logsnr) / math.log(2) / d
+
+    def disc_bpd_from_mse(w, mses):
+        return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
 
     # I'm neglecting right and left tail below, but the bounds are several decimals past what we are showing.
     
@@ -259,7 +264,7 @@ def process_results():
     nll_bpd = cont_bpd_from_mse(w, min_mse)
 
     min_mse_discrete = reduce(t.minimum, [mmse_g, ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'], ddpm['mses_round_xhat'], iddpm['mses_round_xhat']]) #  iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
-    nll_bpd_discrete = disc_bpd_from_mse(logsnr, min_mse_discrete)
+    nll_bpd_discrete = disc_bpd_from_mse(w, min_mse_discrete)
 
     min_deq = reduce(t.minimum, [mmse_g, ddpm['mses_dequantize'], iddpm['mses_dequantize'], ddpm_tune['mses_dequantize'], iddpm_tune['mses_dequantize']])
     ens_deq = cont_bpd_from_mse(w, min_deq) + np.log(127.5)/np.log(2)
@@ -283,7 +288,7 @@ def process_results():
     ax.legend(loc='lower right')
     
     fig.set_tight_layout(True)
-    fig.savefig('./results/figs/cont_density.pdf')
+    # fig.savefig('./results/figs/cont_density.pdf')
     # fig.subplots_adjust(left=0, bottom=0, right=1, top=0.9, wspace=None, hspace=None)
 
     # Discrete
@@ -309,7 +314,7 @@ def process_results():
     ax.legend(loc='upper left')
 
     fig.set_tight_layout(True)
-    fig.savefig('./results/figs/disc_density.pdf')
+    # fig.savefig('./results/figs/disc_density.pdf')
     plt.show()
 
 
@@ -324,11 +329,11 @@ def process_results():
     print('Ensemble &  &  & {:.2f} \\\\'.format(nll_bpd))
 
     print('\n\n\nDiscrete')
-    print('DDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(logsnr, ddpm['mses_round_xhat']), ddpm['nll-discrete-limit (bpd) - dequantize']))
-    print('IDDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(logsnr, iddpm['mses_round_xhat']), iddpm['nll-discrete-limit (bpd) - dequantize']))
+    print('DDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat']), ddpm['nll-discrete-limit (bpd) - dequantize']))
+    print('IDDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat']), iddpm['nll-discrete-limit (bpd) - dequantize']))
     print('\\midrule')
-    print('DDPM(tune)&  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(logsnr, ddpm_tune['mses_round_xhat']),ddpm_tune['nll-discrete-limit (bpd) - dequantize']))
-    print('IDDPM(tune) &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(logsnr, iddpm_tune['mses_round_xhat']), iddpm_tune['nll-discrete-limit (bpd) - dequantize']))
+    print('DDPM(tune)&  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat']),ddpm_tune['nll-discrete-limit (bpd) - dequantize']))
+    print('IDDPM(tune) &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat']), iddpm_tune['nll-discrete-limit (bpd) - dequantize']))
     print('\\midrule')
     print('Ensemble &  &  {:.2f} & {:.2f} \\\\'.format(nll_bpd_discrete, ens_deq))
 
@@ -338,9 +343,87 @@ def process_results():
     print('DDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(ddpm_tune['nll (bpd) - std'], ddpm_tune['nll-discrete (bpd) - std'], ddpm_tune['nll (bpd) - dequantize - std']))
     print('IDDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(iddpm_tune['nll (bpd) - std'], iddpm_tune['nll-discrete (bpd) - std'], iddpm_tune['nll (bpd) - dequantize - std']))
 
+def process_results_disc():
+    ddpm = np.load('./results/npoints/ddpm/results_epoch0.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/npoints/iddpm/results_epoch0.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10.npy', allow_pickle=True)[0]
+
+    # import IPython; IPython.embed()
+
+    # Properties of data used
+    delta = 2. / 255
+    d = 32 * 32 * 3
+    clip = 4
+    log_eigs = t.load('./scripts/cifar_covariance.pt')[2]  # Load cached spectrum for speed
+    logsnr = iddpm['logsnr'] # With the same random seed on the same device, logsnrs are the same
+    w = iddpm['w']
+
+    # Used to estimate good range for integration
+    # loc_logsnr = -log_eigs.mean().item()
+    # scale_logsnr = t.sqrt(1 + 3. / math.pi * log_eigs.var()).item()
+    # w = scale_logsnr * np.tanh(clip / 2) / (expit((logsnr - loc_logsnr)/scale_logsnr) * expit(-(logsnr - loc_logsnr)/scale_logsnr))
+    # w = t.tensor(w)
+
+
+    def disc_bpd_from_mse(w, mses):
+        return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
+
+    # I'm neglecting right and left tail below, but the bounds are several decimals past what we are showing.
+
+    min_mse_discrete = reduce(t.minimum, [ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'], ddpm['mses_round_xhat'], iddpm['mses_round_xhat']]) #  iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
+    nll_bpd_discrete = disc_bpd_from_mse(w, min_mse_discrete)
+
+    cmap2 = sns.color_palette("Paired")
+    cmap = sns.color_palette()
+
+    # Discrete
+    fig, ax = plt.subplots(1)
+    fig.set_size_inches(10, 6, forward=True)
+    ax.plot(logsnr, ddpm['mses'], label='DDPM', color=cmap2[0])
+    ax.plot(logsnr, iddpm['mses'], label='IDDPM', color=cmap2[2])
+    ax.plot(logsnr, ddpm_tune['mses'], label='DDPM-tuned', color=cmap2[1])
+    ax.plot(logsnr, iddpm_tune['mses'], label='IDDPM-tuned', color=cmap2[3])
+    ax.plot(logsnr, ddpm['mses_round_xhat'],label='round(DDPM)', color=cmap2[5])
+    ax.plot(logsnr, iddpm['mses_round_xhat'],label='round(IDDPM)', color=cmap2[9])
+    ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--',label='round(DDPM-tuned)', color=cmap2[4])
+    ax.plot(logsnr, iddpm_tune['mses_round_xhat'], '--', label='round(IDDPM-tuned)', color=cmap2[8])
+
+    # ax.plot(ddpm_tune_soft['logsnr'], ddpm_tune_soft['mses_round_xhat'], label='round(DDPM-tuned)')
+    # ax.plot(iddpm_tune_soft['logsnr'], iddpm_tune_soft['mses_round_xhat'], label='round(IDDPM-tuned)')
+
+    ax.set_xlabel('$\\alpha$ (log SNR)')
+    ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
+    ax.fill_between(logsnr, min_mse_discrete, alpha=0.1)
+    ax.set_yticks([0, d/4, d/2, 3*d/4, d])
+    ax.set_yticklabels(['0', 'd/4', 'd/2', '3d/4', 'd'])
+    ax.legend(loc='upper left')
+
+    fig.set_tight_layout(True)
+    # fig.savefig('./results/figs/disc_density.pdf')
+    plt.show()
+
+
+    # Output table numbers
+    print('Discrete')
+    print('DDPM &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat'])))
+    print('IDDPM &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat'])))
+    print('\\midrule')
+    print('DDPM(tune)&  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat'])))
+    print('IDDPM(tune) &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat'])))
+    print('\\midrule')
+    print('Ensemble &  &  {:.2f} &  \\\\'.format(nll_bpd_discrete))
+
+    # variants
+    print('DDPM - nll-discrete (bpd) std: {:.5f}'.format(ddpm['nll-discrete (bpd) - std']))
+    print('IDDPM - nll-discrete (bpd) std: {:.5f}'.format(iddpm['nll-discrete (bpd) - std']))
+    print('DDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(ddpm_tune['nll-discrete (bpd) - std']))
+    print('IDDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(iddpm_tune['nll-discrete (bpd) - std']))
+
 def main():
     # plot_mse_loss()
-    process_results()
+    # process_results()
+    process_results_disc()
 
 
 if __name__ == "__main__":

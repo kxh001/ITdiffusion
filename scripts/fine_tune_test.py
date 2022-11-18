@@ -39,14 +39,14 @@ def main():
                         # "model_epoch7.pt","model_epoch8.pt","model_epoch9.pt","model_epoch10.pt"]
     model_name_list = ["model_epoch0.pt"]
     if args.iddpm:    
-      model_path = "D:/checkpoints/fine_tune_soft/iddpm/"
+      model_path = "D:/checkpoints/fine_tune/iddpm/"
     else:
-      model_path = "D:/checkpoints/fine_tune_soft/ddpm/"
+      model_path = "D:/checkpoints/fine_tune/ddpm/"
     for mname in model_name_list:
         # mpath = os.path.join(model_path, mname)
-        mpath = 'C:/Users/72809/Desktop/Research/checkpoints/iddpm/cifar10_uncond_50M_500K.pt'
+        # mpath = 'C:/Users/72809/Desktop/Research/checkpoints/iddpm/cifar10_uncond_50M_500K.pt'
         # mpath = 'C:/Users/72809/Desktop/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt'
-        # mpath = 'C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin'
+        mpath = 'C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/diffusion_pytorch_model.bin'
         model.load_state_dict(
             dist_util.load_state_dict(mpath, map_location="cpu"), strict=True
         )
@@ -79,29 +79,27 @@ def main():
         logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
         logger.log(f"evaluating on {args.npoints} points...")
-        results, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=False)
-        print(results)
-        results2, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
-        print(results2)
-        np.save(f'./results/fine_tune/iddpm_hybrid/toy/fine_tune_test/results_epoch{mname[11:-3]}_hard.npy', results)
-        np.save(f'./results/fine_tune/iddpm_hybrid/toy/fine_tune_test/results_epoch{mname[11:-3]}_soft.npy', results2)
+        # results, val_loss = diffusion.test_nll(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
+        # np.save(f'./results/fine_tune/iddpm_hybrid/toy/fine_tune_test/results_epoch{mname[11:-3]}_hard.npy', results)
+        results, val_loss = diffusion.test_nll_disc(data, npoints=args.npoints, delta=1./127.5, xinterval=(-1, 1), soft=True, max_x_samples=1000)
+
         # import IPython; IPython.embed()
 
-        # if args.iddpm:
-        #     np.save(f'./results/fine_tune/iddpm_hybrid/results_epoch{mname[11:-3]}.npy', [results, val_loss])
-        # else:
-        #     np.save(f'./results/debug/soft_discretization/ddpm/results_epoch{mname[11:-3]}.npy', [results, val_loss])
+        if args.iddpm:
+            np.save(f'./results/fine_tune/iddpm/results_epoch{mname[11:-3]}_disc.npy', [results, val_loss])
+        else:
+            np.save(f'./results/fine_tune/ddpm/results_epoch{mname[11:-3]}_disc.npy', [results, val_loss])
         logger.log('epoch: {}\t val loss: {:0.4f}'.format(mname[11:-3], val_loss))
-        logger.log('nll (nats): {:0.4f}\t nll (bpd): {:0.4f}\t nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'
-                  .format(results['nll (nats)'],
-                          results['nll (bpd)'],
-                          results['nll-discrete (bpd)'], 
-                          results['nll-discrete-limit (bpd) - dequantize']))
+        # logger.log('nll (nats): {:0.4f}\t nll (bpd): {:0.4f}\t nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'
+        #           .format(results['nll (nats)'],
+        #                   results['nll (bpd)'],
+        #                   results['nll-discrete (bpd)'], 
+        #                   results['nll-discrete-limit (bpd) - dequantize']))
 
 def create_argparser():
     defaults = dict(
         data_train_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_train',
-        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/random100/cifar_test', 
+        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_test', 
         batch_size=256, 
         iddpm = True,
         wrapped = True,
