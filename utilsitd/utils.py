@@ -149,6 +149,7 @@ def soft_round(x, snr, xinterval, delta):
     ps = t.nn.functional.softmax(-0.5 * t.square(x - bins) * (1 + snr), dim=0)
     return (bins * ps).sum(dim=0)
 
+
 def viz_soft_round():
     z = t.linspace(-2, 2, 10000)
     delta = 0.25

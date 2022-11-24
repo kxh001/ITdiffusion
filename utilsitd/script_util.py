@@ -1,13 +1,13 @@
 import argparse
-import inspect
+import json
 
-# from .information_theoretic_diffusion import ITDiffusionModel
 from diffusionmodel import DiffusionModel
 from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
 from diffusers import UNet2DModel
-import json
+import logger
 
-NUM_CLASSES = 10 # CIFAR-10: 10, ImageNet: 1000
+
+NUM_CLASSES = 10 # used in sampling, CIFAR-10: 10, ImageNet: 1000
 
 
 def model_and_diffusion_defaults():
@@ -25,6 +25,7 @@ def model_and_diffusion_defaults():
         wrapped=False,
         iddpm=True,
         soft=False,
+        ddpm_config_path="",
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
@@ -54,6 +55,7 @@ def create_model_and_diffusion(
     wrapped,
     iddpm,
     soft,
+    ddpm_config_path,
     diffusion_steps,
     noise_schedule,
     timestep_respacing,
@@ -79,6 +81,7 @@ def create_model_and_diffusion(
         wrapped=wrapped,
         iddpm=iddpm,
         soft=soft,
+        ddpm_config_path=ddpm_config_path,
     )
     diffusion = create_information_theoretic_diffusion(
         model=model,
@@ -101,6 +104,7 @@ def create_model(
     wrapped,
     iddpm,
     soft,
+    ddpm_config_path,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -114,9 +118,9 @@ def create_model(
     attention_ds = []
     for res in attention_resolutions.split(","):
         attention_ds.append(image_size // int(res))
-    if wrapped:
-        if iddpm:
-            print("Use wrapped IDDPM model...")
+    if iddpm:
+        if wrapped:
+            logger.log("Use wrapped IDDPM model...")
             return WrapUNetModel(
                 soft=soft,
                 in_channels=3,
@@ -133,13 +137,7 @@ def create_model(
                 use_scale_shift_norm=use_scale_shift_norm,
             )
         else:
-            print("Use wrapped DDPM model(Hugging Face)...")
-            f = open("C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/config.json")
-            model_config = json.load(f)
-            return WrapUNet2DModel(soft=soft, **model_config)
-    else:
-        if iddpm:
-            print("Use original IDDPM model...")
+            logger.log("Use original IDDPM model...")
             return UNetModel(
                 in_channels=3,
                 model_channels=num_channels,
@@ -154,10 +152,14 @@ def create_model(
                 num_heads_upsample=num_heads_upsample,
                 use_scale_shift_norm=use_scale_shift_norm,
             )
+    else:
+        f = open(ddpm_config_path)
+        model_config = json.load(f)
+        if wrapped:
+            logger.log("Use wrapped DDPM model(Hugging Face)...")
+            return WrapUNet2DModel(soft=soft, **model_config)
         else:
-            print("Use original DDPM model(Hugging Face)...")
-            f = open("C:/Users/72809/Desktop/Research/checkpoints/ddpm_cifar10_32/config.json")
-            model_config = json.load(f)
+            logger.log("Use original DDPM model(Hugging Face)...")
             return UNet2DModel(**model_config)
 
 def create_information_theoretic_diffusion(
