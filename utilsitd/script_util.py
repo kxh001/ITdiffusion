@@ -1,10 +1,10 @@
 import argparse
 import json
 
-from diffusionmodel import DiffusionModel
+from . import logger
+from .diffusionmodel import DiffusionModel
 from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
 from diffusers import UNet2DModel
-import logger
 
 
 NUM_CLASSES = 10 # used in sampling, CIFAR-10: 10, ImageNet: 1000
@@ -22,22 +22,15 @@ def model_and_diffusion_defaults():
         num_heads_upsample=-1,
         attention_resolutions="16,8",
         dropout=0.0,
-        wrapped=False,
-        iddpm=True,
-        soft=False,
-        ddpm_config_path="",
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
-        diffusion_steps=1000,
-        noise_schedule="linear",
-        timestep_respacing="",
-        use_kl=False,
-        predict_xstart=False,
-        rescale_timesteps=True,
-        rescale_learned_sigmas=True,
         use_checkpoint=False,
         use_scale_shift_norm=True,
+        wrapped=False,
+        iddpm=True,
+        soft=False,
+        model_config_path="",
     )
 
 
@@ -52,19 +45,12 @@ def create_model_and_diffusion(
     num_heads_upsample,
     attention_resolutions,
     dropout,
+    use_checkpoint,
+    use_scale_shift_norm,
     wrapped,
     iddpm,
     soft,
-    ddpm_config_path,
-    diffusion_steps,
-    noise_schedule,
-    timestep_respacing,
-    use_kl,
-    predict_xstart,
-    rescale_timesteps,
-    rescale_learned_sigmas,
-    use_checkpoint,
-    use_scale_shift_norm,
+    model_config_path,
 ):
     model = create_model(
         image_size,
@@ -81,7 +67,7 @@ def create_model_and_diffusion(
         wrapped=wrapped,
         iddpm=iddpm,
         soft=soft,
-        ddpm_config_path=ddpm_config_path,
+        model_config_path=model_config_path,
     )
     diffusion = create_information_theoretic_diffusion(
         model=model,
@@ -104,7 +90,7 @@ def create_model(
     wrapped,
     iddpm,
     soft,
-    ddpm_config_path,
+    model_config_path,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -153,7 +139,7 @@ def create_model(
                 use_scale_shift_norm=use_scale_shift_norm,
             )
     else:
-        f = open(ddpm_config_path)
+        f = open(model_config_path)
         model_config = json.load(f)
         if wrapped:
             logger.log("Use wrapped DDPM model(Hugging Face)...")

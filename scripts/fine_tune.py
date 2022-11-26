@@ -4,9 +4,9 @@ import numpy as np
 import torch.distributed as dist
 import torch as t
 
-from utilsiddpm import dist_util, logger
-from utilsiddpm.image_datasets import load_data, load_dataloader
-from utilsiddpm.script_util import (
+from utilsitd import logger
+from utilsitd.image_datasets import load_data, load_dataloader
+from utilsitd.script_util import (
     model_and_diffusion_defaults,
     create_model_and_diffusion,
     add_dict_to_argparser,
@@ -16,19 +16,18 @@ from utilsiddpm.script_util import (
 
 def main():
     args = create_argparser().parse_args()
-
-    dist_util.setup_dist()
     logger.configure()
 
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-
     model.load_state_dict(
-        dist_util.load_state_dict(args.model_path, map_location="cpu"), strict=False
+        t.load(args.model_path, map_location="cpu")
     )
-    model.to(dist_util.dev())
+    dev = "cuda" if t.cuda.is_available() else "cpu"
+    model.to(t.device(dev))
+    logger.log(f"Using {dev} for DiffusionModel")
 
     logger.log("creating data loader...")
     data_train = load_dataloader(
@@ -37,6 +36,7 @@ def main():
         image_size=args.image_size,
         class_cond=args.class_cond,
         deterministic=False, 
+        subset = 100
     )
 
     data_test = load_dataloader(
@@ -49,50 +49,49 @@ def main():
 
     data_train_cov = load_data(
         data_dir = args.data_train_dir,
-        batch_size = 12500, # for cifar10, it could be a small number
+        batch_size = 12500,
         image_size=args.image_size,
         class_cond=args.class_cond,
     )
+
     logger.log("calculate integral bound...")
     if args.diagonal:
         diffusion.dataset_info(data_train_cov, diagonal=args.diagonal)
     else:
-        covariance = t.load('./scripts/cifar_covariance.pt')  # Load cached spectrum for speed
-        covariance = [q.to(dist_util.dev()) for q in covariance]
+        covariance = t.load('./covariance/cifar_covariance.pt')  # Load cached spectrum for speed
+        covariance = [q.to(dev) for q in covariance]
         diffusion.dataset_info(data_train_cov, covariance_spectrum=covariance)
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
 
     logger.log("fine tune model...")
-    if args.is_test:
-        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True, iddpm=args.iddpm)
+    if args.test:
+        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
     else:
-        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam', iddpm=args.iddpm)
+        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
 
     logger.log("save results...")
-    if args.iddpm:
-        out_path = f"D:/checkpoints/fine_tune_soft_new/iddpm"
-    else:
-        out_path = f"D:/checkpoints/fine_tune_soft_new/ddpm"
-    np.save(os.path.join(out_path,"train_loss_all.npy"), diffusion.logs['train loss'])
-    if args.is_test:
-        np.save(os.path.join(out_path,"test_loss_all.npy"), diffusion.logs['val loss'])
+    out_path = os.path.join(logger.get_dir(), f"train_loss_all.npy")
+    np.save(out_path, diffusion.logs['train loss'])
+    if args.test:
+        out_path = os.path.join(logger.get_dir(), f"test_loss_all.npy")
+        np.save(out_path, diffusion.logs['val loss'])
 
 def create_argparser():
     defaults = dict(
         data_train_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_train',
-        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_test',  
+        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/random100/cifar_test',  
         train_batch_size=128, 
         test_batch_size=256,
-        model_path="C:/Users/72809/Desktop/Research/checkpoints/iddpm/cifar10_uncond_vlb_50M_500K.pt", 
-        lr =2e-4,
+        model_path="", 
+        model_config_path="", # only ddpm from Hugging face needs config_path
+        lr=2e-4,
         epoch=10,
-        iddpm = True,
-        wrapped = True,
-        class_cond = False,
-        diagonal = False,
-        is_test = False,
-        soft = True,
+        iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
+        wrapped=True, # 'True' if using models wrapped with logsnr2t function, else 'False'
+        diagonal = False, # 'True' if data size is too large to compute covariance matrix from limited data, else 'False'
+        test = False, # 'True' if conduct testing after training, else 'False'
+        soft = False, # 'True' if use soft layer in UNet, else 'False'
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
