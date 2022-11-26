@@ -1,6 +1,7 @@
 """
 Code for Diffusion model class
 """
+import os
 import math
 import time
 import numpy as np
@@ -9,9 +10,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from numpy import interp
 
-from utilsiddpm import utils
-from utilsiddpm.utils import logistic_integrate, trunc_inv_integrate
-from utilsiddpm import logger
+from .utils import logistic_integrate, trunc_inv_integrate, soft_round
+from . import logger
 
 class DiffusionModel(nn.Module):
     """Base class diffusion model for x, with optional conditional info, y.
@@ -21,31 +21,24 @@ class DiffusionModel(nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model  # A model that takes in model(x, y (optional), snr, is_simple) and outputs the noise estimate
-        self.logs = {"val loss": [], "train loss": [],
-                     'mse_curves': [], 'mse_eps_curves': [],
-                     'logsnr_loc': [], 'logsnr_scale': [],
-                     'logsnr_grid': t.linspace(-6, 6, 100),  # Where to evaluate curves for later visualization
-                    }  # store stuff for plotting, could use tensorboard for larger models
+        self.logs = {"val loss": [], "train loss": []} # store stuff for plotting, could use tensorboard for larger models
         self.loc_logsnr, self.scale_logsnr = 0., 2.  # initial location and scale for integration. Reset in data-driven way by dataset_info
         self.clip = 4 # initial quantile for integration.
         self.device = "cuda" if t.cuda.is_available() else "cpu"
-        print(f"Using {self.device} device for DiffusionModel")
-        # dtype, dimensionality, and shape for data, set when we see it in "fit"
-        self.dtype, self.d, self.shape, self.left = None, None, None, None
+        self.dtype, self.d, self.shape, self.left = None, None, None, None # dtype, dimensionality, and shape for data, set when we see it in "fit"
 
     def forward(self, batch, logsnr):
         """Batch is either [x,y] or [x,] depending on whether it is a conditional model."""
         return self.model(batch, t.exp(logsnr))
 
     def noisy_channel(self, x, logsnr):
-        # TODO: fix incorrect broadcasting of noise if multiple x and one snr
         logsnr = logsnr.view(self.left)  # View for left multiplying
         eps = t.randn((len(logsnr),) + self.shape, dtype=x.dtype, device=x.device)
         return t.sqrt(t.sigmoid(logsnr)) * x + t.sqrt(t.sigmoid(-logsnr)) * eps, eps
 
     def mse(self, batch, logsnr, mse_type='epsilon', xinterval=None, delta=None, soft=False):
         """Return MSE curve either conditioned or not on y.
-        x_hat = z/sqrt(snr) + eps_hat(z, snr)/sqrt(snr),
+        x_hat = z/sqrt(snr) - eps_hat(z, snr)/sqrt(snr),
         so x_hat - x = (eps - eps_hat(z, snr))/sqrt(snr).
         And we actually reparametrize eps_hat to depend on eps(z/sqrt(1+snr), snr)
         Options are:
@@ -53,16 +46,16 @@ class DiffusionModel(nn.Module):
         xinterval: Whether predictions should be clamped to some interval.
         delta: If provided, round to the nearest discrete value
         """
-        x = batch[0].to(self.device)  # assume iterator gives other things besides x in list
+        x = batch[0].to(self.device)  # assume iterator gives other things besides x in list (e.g. y)
         z, eps = self.noisy_channel(x, logsnr)
         noisy_batch = [z, ] + batch[1:]  # batch may include conditioning on y
         eps_hat = self.model(noisy_batch, t.exp(logsnr))
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
         if delta:
             if soft:
-                x_hat = utils.soft_round(x_hat, t.exp(logsnr).view(self.left), xinterval, delta)
+                x_hat = soft_round(x_hat, t.exp(logsnr).view(self.left), xinterval, delta) # soft round to nearest discrete value
             else:
-                x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # Round to nearest discrete value
+                x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # hard round to nearest discrete value
         if xinterval:
             x_hat = t.clamp(x_hat, xinterval[0], xinterval[1])  # clamp predictions to not fall outside of range
         err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
@@ -92,7 +85,7 @@ class DiffusionModel(nn.Module):
         """
         mmse_gap = mses - self.mmse_g(logsnr)  # The "scale" does not change the integral, but may be more numerically stable.
         loss = self.h_g + 0.5 * (w * mmse_gap).mean()
-        return loss  # *logsnr integration, see note
+        return loss  # *logsnr integration, see paper
 
     @t.no_grad()
     def test_nll(self, dataloader, npoints=100, delta=None, xinterval=None, soft=False):
@@ -194,78 +187,6 @@ class DiffusionModel(nn.Module):
 
         return results, val_loss
 
-    @t.no_grad()
-    def test_nll_disc(self, dataloader, npoints=100, delta=None, xinterval=None, soft=True, max_x_samples=100):
-        """Calculate expected NLL on data at test time.
-         Main difference is that we use a different importance sampling distribution for discrete,
-         and integrate in snr, rather than logsnr
-        npoints - number of points to use in integration
-        delta - if the data is discrete, delta is the gap between discrete values.
-        E.g. delta = 1/127.5 for CIFAR data (0, 255) scaled to -1, 1 range
-        range = a tuple of the range of the discrete values, e.g. (-1, 1) for CIFAR10 normalized
-        """
-        if self.model.training:
-            print("Warning - estimating test NLL but model is in train mode")
-        results = {}  # Return multiple forms of results in a dictionary
-        clip = self.clip
-        loc, scale = self.loc_scale
-        logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
-        left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
-        # sort logsnrs along with weights
-        logsnr, idx = logsnr.sort()
-        w = w[idx].to('cpu')
-
-        results['logsnr'] = logsnr.to('cpu')
-        results['w'] = w
-        mses, mses_round_xhat = [], []  # Store all MSEs, per sample, logsnr, in an array
-        val_loss = 0
-        for j, this_logsnr in tqdm(enumerate(logsnr), total=len(logsnr)):
-            mses.append([])
-            mses_round_xhat.append([])
-            total_samples = 0
-            for batch in dataloader:
-                if total_samples > max_x_samples:
-                    break
-                data = batch[0].to(self.device)  # assume iterator gives other things besides x in list
-                n_samples = len(data)
-                total_samples += n_samples
-
-                this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
-
-                # Regular MSE, clamps predictions, but does not discretize
-                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval).cpu()
-                mses[-1].append(this_mse)
-
-                # MSE for estimator that rounds using x_hat
-                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
-                mses_round_xhat[-1].append(this_mse)
-
-        mses = t.stack([t.cat(this_mse, dim=0) for this_mse in mses], dim=1)  # Concatenate the batches together across axis 0
-        mses_round_xhat = t.stack([t.cat(this_mse, dim=0) for this_mse in mses_round_xhat], dim=1)
-        results['mses-all'] = mses  # Store array of mses for each sample, logsnr
-        results['mses_round_xhat-all'] = mses_round_xhat
-        mses = mses.mean(dim=0)  # Average across samples, giving MMSE(snr)
-        mses_round_xhat = mses_round_xhat.mean(dim=0)
-
-        results['mses'] = mses
-        results['mses_round_xhat'] = mses_round_xhat
-
-        # Upper bound on direct estimate of -log P(x) for discrete x
-        left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum().cpu()
-        j_max = int((xinterval[1] - xinterval[0]) / delta)
-        right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
-        mses_min = t.minimum(mses, mses_round_xhat)
-        results['nll-discrete'] = t.mean(0.5 * (w * mses_min) + right_tail + left_tail)
-        results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
-
-        # Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
-        # n_samples is number of x samples * number of logsnr samples per x
-        n_samples = results['mses-all'].numel()
-        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
-        results['nll-discrete (bpd) - std'] = t.sqrt(results['nll-discrete (nats) - var']) / math.log(2) / self.d
-        return results, val_loss
-
-
     @property
     def loc_scale(self):
         """Return the parameters defining a normal distribution over logsnr, inferred from data statistics."""
@@ -275,11 +196,11 @@ class DiffusionModel(nn.Module):
         """covariance_spectrum can provide precomputed spectrum to speed up frequent experiments.
            diagonal: {False, True}  approximates covariance as diagonal, useful for very high-d data.
         """
-        print("Getting dataset statistics, including eigenvalues,")
+        logger.log("Getting dataset statistics, including eigenvalues,")
         for batch in dataloader:
             break
         data = batch[0].to("cpu")  # assume iterator gives other things besides x in list
-        print('using # samples given:', len(data))
+        logger.log('using # samples given:', len(data))
         self.d = len(data[0].flatten())
         if not diagonal:
             assert len(data) > self.d, f"Use a batch with more samples {len(data[0])} than dimensions {self.d}"
@@ -300,7 +221,6 @@ class DiffusionModel(nn.Module):
                 self.log_eigs = 2 * t.log(eigs) - math.log(len(x) - 1)  # Eigs of covariance are eigs**2/(n-1)  of SVD
             # t.save((self.mu, self.U, self.log_eigs), './scripts/imagenet64_covariance.pt')  # Save like this
 
-        self.logs['log_eigs'] = self.log_eigs.cpu()
         self.log_eigs = self.log_eigs.to(self.device)
         self.mu = self.mu.to(self.device)
         if self.U is not None:
@@ -314,7 +234,7 @@ class DiffusionModel(nn.Module):
         else:
             self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
 
-    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False, iddpm=False):
+    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
            See CustomDataset class for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
@@ -350,45 +270,26 @@ class DiffusionModel(nn.Module):
                 train_loss += loss.detach().cpu().item() * num_samples
             train_loss /= total_samples
             iter_per_sec = len(dataloader_train) / (time.time() - t0)
-            if not verbose:
-              logger.log("epoch: {:3d}\t train loss: {:0.4f}".format(i, train_loss/np.log(2.0)/self.d))
-            if iddpm:
-                t.save(self.model.state_dict(), f'D:/checkpoints/fine_tune_soft_new/iddpm/model_epoch{i}.pt') # save model
-            else:
-                t.save(self.model.state_dict(), f'D:/checkpoints/fine_tune_soft_new/ddpm/model_epoch{i}.pt') # save model
-            self.log_function(train_loss=train_loss)
+            out_path = os.path.join(logger.get_dir(), f"model_epoch{i}.pt") 
+            t.save(self.model.state_dict(), out_path) # save model
+            self.logs['train loss'].append(train_loss)
 
             if dataloader_test:  # Process validation statistics once per epoch, if available
                 print("testing ...")
                 self.eval()
                 with t.no_grad():
                     results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
-                    if iddpm:
-                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/iddpm/results_epoch{i}_base.npy", results) # save test results
-                    else:
-                        np.save(f"/home/theo/Research_Results/debug/iid_sampler/ddpm/results_epoch{i}_base.npy", results) # save test results
-                    self.log_function(val_loss=val_loss, results=results)
+                    out_path = os.path.join(logger.get_dir(), f"results_epoch{i}.npy") 
+                    np.save(out_path, results) 
+                    self.logs['val loss'].append(val_loss)
 
             if verbose:
-                logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
-                      format(i, train_loss, val_loss, iter_per_sec))
-                logger.log('nll (nats): {:0.4f}\t nll-discrete (bpd): {:0.4f}\t nll-discrete-limit (bpd): {:0.4f}\t nll-discrete-limit (bpd) - dequantize:{:0.4f}'.
-                    format(results['nll (nats)'],
-                        results['nll-discrete (bpd)'], 
-                        results['nll-discrete-limit (bpd)'], 
-                        results['nll-discrete-limit (bpd) - dequantize']))
-
-    def log_function(self, train_loss=None, val_loss=None, results=None):
-        """Record logs during training."""
-        self.logs['logsnr_loc'].append(self.loc_logsnr)
-        self.logs['logsnr_scale'].append(self.scale_logsnr)
-        if train_loss:
-            self.logs['train loss'].append(train_loss)
-        if val_loss:
-            self.logs['val loss'].append(val_loss)
-        if results:
-            self.logs['mse_curves'].append(results['mses'] / t.exp(self.logs['logsnr_grid']))
-            self.logs['mse_eps_curves'].append(results['mses'])
+                if dataloader_test:
+                    logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
+                        format(i, train_loss, val_loss, iter_per_sec))
+                else:
+                    logger.log('epoch: {:3d}\t train loss: {:0.4f}\t iter/sec: {:0.2f}'.
+                        format(i, train_loss, iter_per_sec))
 
 
     ##########################################
