@@ -23,11 +23,19 @@ If you would like to create your own dataset, please refer to [instructions](htt
 The following commands are used to run ./scripts/fine_tune.py:
 1. IDDPM + CIFAR10 + vlb:
 ```
-python ./scripts/fine_tune.py --model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 --iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True
+python ./scripts/fine_tune.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
+--image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
+--iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True
 ```
 2. DDPM + CIFAR10:
 ```
-python ./scripts/fine_tune.py --model_path XXX/ddpm_cifar10_32/diffusion_pytorch_model.bin --model_config_path XXX\ddpm_cifar10_32\config.json --iddpm False --wrapped True --image_size 32 --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True
+python ./scripts/fine_tune.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--model_path XXX/ddpm_cifar10_32/diffusion_pytorch_model.bin --model_config_path XXX\ddpm_cifar10_32\config.json 
+--image_size 32
+--iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True
 ```
 
 ## Models
