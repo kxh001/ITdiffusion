@@ -6,7 +6,7 @@ Folder 'utilsitd' includes the utilities from [improved-diffusion](https://githu
 
 # Usage
 ## Installation
-Clone this repository and navigate to ./ITdiffusion, then run:
+Clone this repository and navigate to ./ITdiffusion as working directory, then run:
 
 ```
 pip install -e .
@@ -17,7 +17,7 @@ This should instabll the 'itdiffusion' python package that scripts depend on.
 ## Preparing Data
 We only use CIFAR-10 in our project. The dataset and preprocessing could be found at [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
 
-If you would like to create your own dataset, please refer to [instructions](https://github.com/openai/improved-diffusion)
+If you would like to create your own dataset, please refer to [instructions](https://github.com/openai/improved-diffusion).
 
 ## Fine-tuning
 The following commands are used to run ./scripts/fine_tune.py:
@@ -33,7 +33,7 @@ python ./scripts/fine_tune.py --model_path XXX/ddpm_cifar10_32/diffusion_pytorch
 ## Models
 - The pre-trianed IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt). 
 
-- The pre-trained DDPM model is stored [here](https://drive.google.com/drive/folders/1G1nFv6AML_8zeElxMECkYfJnmihVcR86?usp=sharing). For DDPM, it attaches with a config.json file. 
+- The pre-trained DDPM model is stored [here](https://drive.google.com/drive/folders/1G1nFv6AML_8zeElxMECkYfJnmihVcR86?usp=sharing). For DDPM, it attaches with a config.json file and has the same interface of Huggingface. 
 
 
 ## Results
