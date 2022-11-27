@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name="diffusion",
+    name="itdiffusion",
     py_modules=["utilsitd"],
     install_requires=["blobfile>=1.0.5", "torch", "tqdm"],
 )
