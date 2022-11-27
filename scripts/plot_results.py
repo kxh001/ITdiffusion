@@ -1,15 +1,15 @@
-import torch as t
-import matplotlib.pyplot as plt
-from scipy.special import expit
-from matplotlib import cm
-import seaborn as sns
-import numpy as np
-import sys
 import math
-from utilsiddpm.utils import logistic_integrate
+import torch as t
+import numpy as np
+from scipy.special import expit
 from functools import reduce
+import seaborn as sns
+from matplotlib import cm
+import matplotlib.pyplot as plt
+
+from utilsitd.utils import logistic_integrate
+
 plt.style.use('seaborn-paper')
-sys.path.append('..')
 sns.set(style="whitegrid")
 sns.set_context("paper", font_scale=2, rc={"lines.linewidth": 2.5})
 
@@ -231,8 +231,6 @@ def process_results():
     # iddpm_tune_soft = np.load('./results/variance/iddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
     # ddpm_tune_soft = np.load('./results/variance/ddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
 
-    import IPython; IPython.embed()
-
     # Properties of data used
     delta = 2. / 255
     d = 32 * 32 * 3
@@ -344,10 +342,10 @@ def process_results():
     print('IDDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(iddpm_tune['nll (bpd) - std'], iddpm_tune['nll-discrete (bpd) - std'], iddpm_tune['nll (bpd) - dequantize - std']))
 
 def process_results_disc():
-    ddpm = np.load('./results/npoints/ddpm/results_epoch0.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/npoints/iddpm/results_epoch0.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10.npy', allow_pickle=True)[0]
+    ddpm = np.load('./results/npoints/ddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/npoints/iddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
 
     # import IPython; IPython.embed()
 
@@ -388,10 +386,6 @@ def process_results_disc():
     ax.plot(logsnr, iddpm['mses_round_xhat'],label='round(IDDPM)', color=cmap2[9])
     ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--',label='round(DDPM-tuned)', color=cmap2[4])
     ax.plot(logsnr, iddpm_tune['mses_round_xhat'], '--', label='round(IDDPM-tuned)', color=cmap2[8])
-
-    # ax.plot(ddpm_tune_soft['logsnr'], ddpm_tune_soft['mses_round_xhat'], label='round(DDPM-tuned)')
-    # ax.plot(iddpm_tune_soft['logsnr'], iddpm_tune_soft['mses_round_xhat'], label='round(IDDPM-tuned)')
-
     ax.set_xlabel('$\\alpha$ (log SNR)')
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
     ax.fill_between(logsnr, min_mse_discrete, alpha=0.1)
