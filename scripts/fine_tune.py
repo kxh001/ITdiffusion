@@ -79,8 +79,8 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_train_dir=r'C:/Users/72809/Desktop/Research/datasets/cifar_train',
-        data_test_dir=r'C:/Users/72809/Desktop/Research/datasets/random100/cifar_test',  
+        data_train_dir="",
+        data_test_dir="",  
         train_batch_size=128, 
         test_batch_size=256,
         model_path="", 
