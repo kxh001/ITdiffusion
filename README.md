@@ -2,7 +2,7 @@
 
 Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation. 
 
-Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion), and use 'scripts' to output results we desire. 
+Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model named 'diffusionmodel.py', and use scripts to output results we desire. 
 
 # Usage
 ## Installation
