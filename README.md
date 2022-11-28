@@ -33,7 +33,7 @@ python ./scripts/fine_tune.py
 ```
 python ./scripts/fine_tune.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
---model_path XXX/ddpm_cifar10_32/diffusion_pytorch_model.bin --model_config_path XXX\ddpm_cifar10_32\config.json 
+--model_path XXX/ddpm_cifar10_32/diffusion_pytorch_model.bin --model_config_path XXX/ddpm_cifar10_32/config.json 
 --image_size 32
 --iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True
 ```
