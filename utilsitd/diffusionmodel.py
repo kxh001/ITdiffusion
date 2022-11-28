@@ -106,6 +106,12 @@ class DiffusionModel(nn.Module):
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx].to('cpu')
+        # select 100 logsnrs out of 1k
+        # t.manual_seed(1024)
+        # idx_r = t.randint(0, npoints, (100,))
+        # logsnr = logsnr[idx_r]
+        # w = w[idx_r]
+
 
         results['logsnr'] = logsnr.to('cpu')
         results['w'] = w
@@ -177,7 +183,7 @@ class DiffusionModel(nn.Module):
         # n_samples is number of x samples * number of logsnr samples per x
         inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region (for continuous estimators)
         n_samples = results['mses-all'].numel()
-        wp = w[inds].to('cpu')
+        wp = w[inds]
         results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
         results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
         results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
@@ -290,3 +296,12 @@ class DiffusionModel(nn.Module):
                 else:
                     logger.log('epoch: {:3d}\t train loss: {:0.4f}\t iter/sec: {:0.2f}'.
                         format(i, train_loss, iter_per_sec))
+
+    @property
+    def h_g(self):
+        """Differential entropy for a N(mu, Sigma), where Sigma matches data, with same dimension as data."""
+        return 0.5 * self.d * math.log(2 * math.pi * math.e) + 0.5 * self.log_eigs.sum().item()
+
+    def mmse_g(self, logsnr):
+        """The analytic MMSE for a Gaussian with the same eigenvalues as the data in a Gaussian noise channel."""
+        return t.sigmoid(logsnr + self.log_eigs.view((-1, 1))).sum(axis=0)  # *logsnr integration, see note
