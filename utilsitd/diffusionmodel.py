@@ -278,7 +278,7 @@ class DiffusionModel(nn.Module):
                 print("testing ...")
                 self.eval()
                 with t.no_grad():
-                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1))
+                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
                     out_path = os.path.join(logger.get_dir(), f"results_epoch{i}.npy") 
                     np.save(out_path, results) 
                     self.logs['val loss'].append(val_loss)
