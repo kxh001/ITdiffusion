@@ -2,6 +2,16 @@
 
 Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation. 
 
+Code for the paper [Information Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
+>@inproceedings{
+kong2023informationtheoretic,
+title={Information-Theoretic Diffusion},
+author={Xianghao Kong and Rob Brekelmans and Greg Ver Steeg},
+booktitle={International Conference on Learning Representations},
+year={2023},
+url={https://openreview.net/forum?id=UvmDCdSPDOW}
+}
+
 Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model named 'diffusionmodel.py', and use scripts to output results we desire. 
 
 # Usage
@@ -46,3 +56,4 @@ python ./scripts/fine_tune.py
 
 ## Results
 - MSE curves: [cont_density](./results/figs/cont_density.pdf), [disc_density](./results/figs/disc_density.pdf).
+
