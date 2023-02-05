@@ -5,9 +5,9 @@ Code for the paper [Information-Theoretic Diffusion](https://openreview.net/foru
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
 Our bounds take the form
 
-$$ \log p(\vx) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma \quad $$
+$$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma \quad \text{where } \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 $$
 
-where $\gamma$ is the signal-to-noise ratio and $\text{mmse} = \min_{\hat{x}} \mathbb{E}_{p(z_{\gamma}|x)}[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2]$
+where $\gamma$ is the signal-to-noise ratio.  
 
 
 ```
