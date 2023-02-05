@@ -1,6 +1,6 @@
 # Information-Theoretic diffusion
 
-Code for the paper [Information Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
+Code for the paper [Information-Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
 
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
 
