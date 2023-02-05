@@ -1,8 +1,9 @@
 # Information-theoretic diffusion
 
-Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation. 
-
 Code for the paper [Information Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
+
+We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
+
 >@inproceedings{
 kong2023informationtheoretic,
 title={Information-Theoretic Diffusion},
@@ -11,8 +12,9 @@ booktitle={International Conference on Learning Representations},
 year={2023},
 url={https://openreview.net/forum?id=UvmDCdSPDOW}
 }
+ 
+<!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
 
-Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model named 'diffusionmodel.py', and use scripts to output results we desire. 
 
 # Usage
 ## Installation
@@ -23,6 +25,10 @@ pip install -e .
 ```
 
 This should instabll the 'itdiffusion' python package that scripts depend on. 
+
+## Information Theoretic Diffusion
+Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model named 'diffusionmodel.py', and use scripts to output results we desire. 
+
 
 ## Preparing Data
 We only use CIFAR-10 in our project. The dataset and preprocessing could be found at [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
