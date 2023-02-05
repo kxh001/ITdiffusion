@@ -11,8 +11,7 @@ title={Information-Theoretic Diffusion},
 author={Xianghao Kong and Rob Brekelmans and Greg Ver Steeg},
 booktitle={International Conference on Learning Representations},
 year={2023},
-url={https://openreview.net/forum?id=UvmDCdSPDOW}
-}
+url={https://openreview.net/forum?id=UvmDCdSPDOW} }
 ```
  
 <!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
