@@ -1,4 +1,4 @@
-# Information-theoretic diffusion
+# Information-Theoretic diffusion
 
 Code for the paper [Information Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
 
