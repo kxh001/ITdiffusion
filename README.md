@@ -8,7 +8,7 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 
 where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimation, we visualize the curve of denoising errors by SNR (left) and show that existing models can be improved by fine-tuning according to ITD loss or ensembling (right).
 
-![](https://github.com/kxh001/ITdiffusion/blob/main/results/figs/discrete_fig%2Btable.pdf)
+![Discrete Results](https://github.com/kxh001/ITdiffusion/blob/main/results/figs/discrete_fig%2Btable.pdf)
 
 
 ```
