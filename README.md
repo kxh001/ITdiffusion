@@ -4,7 +4,8 @@ Code for the paper [Information-Theoretic Diffusion](https://openreview.net/foru
 
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
 
->@inproceedings{
+```
+@inproceedings{
 kong2023informationtheoretic,
 title={Information-Theoretic Diffusion},
 author={Xianghao Kong and Rob Brekelmans and Greg Ver Steeg},
@@ -12,6 +13,7 @@ booktitle={International Conference on Learning Representations},
 year={2023},
 url={https://openreview.net/forum?id=UvmDCdSPDOW}
 }
+```
  
 <!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
 
