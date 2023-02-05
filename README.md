@@ -1,4 +1,4 @@
-# Information-Theoretic diffusion
+# Information-Theoretic Diffusion (ITD)
 
 Code for the paper [Information-Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
 
@@ -6,7 +6,8 @@ We introduce a new mathematical foundation for diffusion models inspired by clas
 
 $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{const} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
 
-where $\gamma$ is the signal-to-noise ratio.  
+where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimation, we visualize the curve of denoising errors by SNR (left) and show that existing models can be improved by fine-tuning according to ITD loss or ensembling (right).
+![](https://drive.google.com/file/d/1lhmDHVJF-F5EBC-baY0kPVKlyXYxIUyk/view?usp=sharing)
 
 
 ```
