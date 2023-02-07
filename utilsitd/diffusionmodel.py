@@ -8,9 +8,8 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 from tqdm import tqdm
-from numpy import interp
 
-from .utils import logistic_integrate, trunc_inv_integrate, soft_round
+from .utils import logistic_integrate, soft_round
 from . import logger
 
 class DiffusionModel(nn.Module):
@@ -106,7 +105,8 @@ class DiffusionModel(nn.Module):
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx].to('cpu')
-        # select 100 logsnrs out of 1k
+
+        ## select 100 logsnrs out of 1k (see B.5 VARIANCE ESTIMATES)
         # t.manual_seed(1024)
         # idx_r = t.randint(0, npoints, (100,))
         # logsnr = logsnr[idx_r]
@@ -179,8 +179,8 @@ class DiffusionModel(nn.Module):
                 results['nll-discrete'] = t.mean(0.5 * (w * mses_min) + right_tail + left_tail)
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
 
-        # Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
-        # n_samples is number of x samples * number of logsnr samples per x
+        ## Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
+        ## n_samples is number of x samples * number of logsnr samples per x
         inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region (for continuous estimators)
         n_samples = results['mses-all'].numel()
         wp = w[inds]
@@ -225,7 +225,7 @@ class DiffusionModel(nn.Module):
             else:
                 _, eigs, self.U = t.linalg.svd(x, full_matrices=False)  # U.T diag(eigs^2/(n-1)) U = covariance
                 self.log_eigs = 2 * t.log(eigs) - math.log(len(x) - 1)  # Eigs of covariance are eigs**2/(n-1)  of SVD
-            # t.save((self.mu, self.U, self.log_eigs), './scripts/imagenet64_covariance.pt')  # Save like this
+            # t.save((self.mu, self.U, self.log_eigs), './covariance/cifar_covariance.pt')  # Save like this
 
         self.log_eigs = self.log_eigs.to(self.device)
         self.mu = self.mu.to(self.device)
@@ -242,7 +242,7 @@ class DiffusionModel(nn.Module):
 
     def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
-           See CustomDataset class for example of torch dataset, that can be used with dataloader
+           See image_datasets.py for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
         """
         if use_optimizer == 'adam':
@@ -254,12 +254,6 @@ class DiffusionModel(nn.Module):
 
         # Return to standard fitting paradigm
         for i in range(1, epochs+1):  # Main training loop
-            ### We can try various 'lr_scheduler' here ### 
-            # lr decay -- multistep
-            # if i == 5:
-            #     for p in optimizer.param_groups:
-            #         p['lr'] *= 0.1
-
             print("training ... ")
             train_loss = 0.
             t0 = time.time()

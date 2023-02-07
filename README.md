@@ -9,7 +9,55 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimation, we visualize the curve of denoising errors by log SNR (left) and show that existing models can be improved using fine-tuning inspired by the ITD loss or by ensembling different models at different SNRs (right).
 
 ![Discrete Results](/results/figs/discrete_fig_table.png)
+ 
+<!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
 
+
+# Usage
+## Installation
+Clone this repository and navigate to './ITdiffusion' as working directory in the Linux terminal or Anaconda Powershell Prompt, then run the command:
+
+```
+pip install -e .
+```
+
+This would install the 'itdiffusion' python package that scripts depend on. 
+
+## Information Theoretic Diffusion
+Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model, and then use scripts to output results we desire. 
+
+## Preparing Data
+We use CIFAR-10 dataset in our paper. The dataset preprocessing code is provided by [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
+For convenience, we include it in './datasets/cifar10.py'. You could run it directly to get processed dataset.
+
+## Fine-tuning
+The following commands are used to run './scripts/fine_tune.py':
+1. IDDPM + CIFAR10 + vlb:
+```
+python ./scripts/fine_tune.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
+--image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
+--iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True --soft False
+```
+2. DDPM + CIFAR10:
+```
+python ./scripts/fine_tune.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--image_size 32
+--iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True --soft False
+```
+
+## Models
+- The pre-trianed IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
+
+- We use pre-trained DDPM model from Huggingface via '[diffusers](https://github.com/huggingface/diffusers)' library.
+
+
+## Results
+Run './script/plot_results.py' to get all figures and tables in the paper. 
+
+## BibTeX
 ```
 @inproceedings{
 kong2023informationtheoretic,
@@ -19,54 +67,7 @@ booktitle={International Conference on Learning Representations},
 year={2023},
 url={https://openreview.net/forum?id=UvmDCdSPDOW} }
 ```
- 
-<!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
 
-
-# Usage
-## Installation
-Clone this repository and navigate to ./ITdiffusion as working directory, then run:
-
-```
-pip install -e .
-```
-
-This should instabll the 'itdiffusion' python package that scripts depend on. 
-
-## Information Theoretic Diffusion
-Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model named 'diffusionmodel.py', and use scripts to output results we desire. 
-
-
-## Preparing Data
-We only use CIFAR-10 in our project. The dataset and preprocessing could be found at [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
-
-If you would like to create your own dataset, please refer to [instructions](https://github.com/openai/improved-diffusion).
-
-## Fine-tuning
-The following commands are used to run ./scripts/fine_tune.py:
-1. IDDPM + CIFAR10 + vlb:
-```
-python ./scripts/fine_tune.py 
---data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
---model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
---image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True
-```
-2. DDPM + CIFAR10:
-```
-python ./scripts/fine_tune.py 
---data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
---model_path XXX/ddpm_cifar10_32/diffusion_pytorch_model.bin --model_config_path XXX/ddpm_cifar10_32/config.json 
---image_size 32
---iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True
-```
-
-## Models
-- The pre-trianed IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt). 
-
-- The pre-trained DDPM model is stored [here](https://drive.google.com/drive/folders/1G1nFv6AML_8zeElxMECkYfJnmihVcR86?usp=sharing). For DDPM, it attaches with a config.json file and has the same interface of Huggingface. 
-
-
-## Results
-- MSE curves: [cont_density](./results/figs/cont_density.pdf), [disc_density](./results/figs/disc_density.pdf).
-
+## References
+- Alex Nichol's [implement of IDDPM](https://github.com/openai/improved-diffusion).
+- HuggingFace's [diffusers](https://github.com/huggingface/diffusers) library.

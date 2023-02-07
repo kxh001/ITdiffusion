@@ -549,9 +549,6 @@ class Soft(nn.Module):
     """Discretize x_hat to its rounded value."""
     def __init__(self):
         super().__init__()
-        # self.a0 = nn.Parameter(th.tensor(1.))
-        # self.a1 = nn.Parameter(th.tensor(1.))
-        # self.a2 = nn.Parameter(th.randn(1))
 
     def forward(self, z, eps_hat, snr, xinterval=(-1, 1), delta=1./127.5):
         ndim = len(z.shape)
@@ -561,7 +558,6 @@ class Soft(nn.Module):
         bins = th.linspace(xinterval[0], xinterval[1], 1 + int((xinterval[1]-xinterval[0])/delta), device=x_hat.device)
         bins = bins.reshape(left + (1,))
         ps = F.softmax(-0.5 * th.square(x_hat - bins) * (1 + snr), dim=0)
-        # ps = F.softmax(-0.5 * th.square(x_hat - bins) * (self.a0 + self.a1*snr + self.a2*snr**2), dim=0) # snr control is a polynomial estiamtion
         return (bins * ps).sum(dim=0)
 
 
@@ -573,7 +569,7 @@ class WrapUNetModel(UNetModel):
         self.soft_round = Soft()
 
     def forward(self, z, snr):
-        x = z[0] # uncondition model 
+        x = z[0]
         timestep = self.logsnr2t(th.log(snr))
         model_output = super().forward(x, timestep)
         C = model_output.shape[1] // 2
@@ -597,7 +593,7 @@ class WrapUNet2DModel(UNet2DModel):
         self.soft_round = Soft()
 
     def forward(self, z, snr):
-        x = z[0] # uncondition model 
+        x = z[0]
         timestep = self.logsnr2t(th.log(snr))
         eps_hat = super().forward(x, timestep)["sample"]
         if self.soft:

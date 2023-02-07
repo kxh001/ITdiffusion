@@ -1,5 +1,4 @@
 import argparse
-import json
 
 from . import logger
 from .diffusionmodel import DiffusionModel
@@ -7,7 +6,7 @@ from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
 from diffusers import UNet2DModel
 
 
-NUM_CLASSES = 10 # used in sampling, CIFAR-10: 10, ImageNet: 1000
+NUM_CLASSES = 10 # CIFAR-10: 10, ImageNet: 1000
 
 
 def model_and_diffusion_defaults():
@@ -23,14 +22,12 @@ def model_and_diffusion_defaults():
         attention_resolutions="16,8",
         dropout=0.0,
         learn_sigma=False,
-        sigma_small=False,
         class_cond=False,
         use_checkpoint=False,
         use_scale_shift_norm=True,
         wrapped=False,
         iddpm=True,
         soft=False,
-        model_config_path="",
     )
 
 
@@ -38,7 +35,6 @@ def create_model_and_diffusion(
     image_size,
     class_cond,
     learn_sigma,
-    sigma_small,
     num_channels,
     num_res_blocks,
     num_heads,
@@ -50,7 +46,6 @@ def create_model_and_diffusion(
     wrapped,
     iddpm,
     soft,
-    model_config_path,
 ):
     model = create_model(
         image_size,
@@ -67,7 +62,6 @@ def create_model_and_diffusion(
         wrapped=wrapped,
         iddpm=iddpm,
         soft=soft,
-        model_config_path=model_config_path,
     )
     diffusion = create_information_theoretic_diffusion(
         model=model,
@@ -90,7 +84,6 @@ def create_model(
     wrapped,
     iddpm,
     soft,
-    model_config_path,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -139,14 +132,13 @@ def create_model(
                 use_scale_shift_norm=use_scale_shift_norm,
             )
     else:
-        f = open(model_config_path)
-        model_config = json.load(f)
+        model_id = "google/ddpm-cifar10-32"
         if wrapped:
-            logger.log("Use wrapped DDPM model(Hugging Face)...")
-            return WrapUNet2DModel(soft=soft, **model_config)
+            logger.log("Use wrapped DDPM model(HuggingFace)...")
+            return WrapUNet2DModel(soft=soft).from_pretrained(model_id)
         else:
-            logger.log("Use original DDPM model(Hugging Face)...")
-            return UNet2DModel(**model_config)
+            logger.log("Use original DDPM model(HuggingFace)...")
+            return UNet2DModel.from_pretrained(model_id)
 
 def create_information_theoretic_diffusion(
     model,
