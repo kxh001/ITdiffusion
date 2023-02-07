@@ -62,7 +62,7 @@ Run './script/plot_results.py' to get all figures and tables in the paper.
 @inproceedings{
 kong2023informationtheoretic,
 title={Information-Theoretic Diffusion},
-author={Xianghao Kong and Rob Brekelmans and Greg Ver Steeg},
+author={Xianghao Kong and Rob Brekelmans and Greg {Ver Steeg}},
 booktitle={International Conference on Learning Representations},
 year={2023},
 url={https://openreview.net/forum?id=UvmDCdSPDOW} }
