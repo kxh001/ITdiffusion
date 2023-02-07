@@ -4,82 +4,14 @@ import numpy as np
 from scipy.special import expit
 from functools import reduce
 import seaborn as sns
-from matplotlib import cm
 import matplotlib.pyplot as plt
-
-from utilsitd.utils import logistic_integrate
 
 plt.style.use('seaborn-paper')
 sns.set(style="whitegrid")
-sns.set_context("paper", font_scale=2, rc={"lines.linewidth": 2.5})
-
-def viz_one(mses, log_eigs, logsnrs, d=2):
-    """Default visualization for mse curve and mse gap curve for one test"""
-    fig, axs = plt.subplots(2, 1, sharex=False, sharey=False)
-    
-    baseline = np.array([d / (1. + np.exp(-logsnr)) for logsnr in logsnrs])
-    baseline2 = t.sigmoid(logsnrs + log_eigs.view((-1, 1))).sum(axis=0).numpy()
-    ax = axs[0]
-    ax.plot(logsnrs, baseline, label='$N(0,1)$ MMSE')
-    ax.plot(logsnrs, baseline2, lw=3, label='$N(\mu,\Sigma)$ MMSE')
-    ax.plot(logsnrs, mses, label='Data MSE')
-    ax.set_ylabel('$E[(\epsilon - \hat \epsilon)^2]$')
-    ax.set_xlabel('log SNR ($\gamma$)')
-    ax.legend()
-    ax.set_title('epoch=2')
-
-    ax = axs[1]
-    ax.plot(logsnrs, baseline - np.array(mses), label='MMSE Gap for $N(0,1)$')
-    ax.plot(logsnrs, baseline2 - np.array(mses), label='MMSE Gap for $N(\mu,\Sigma)$')
-    ax.set_ylim(-0.01, np.max(np.array(baseline) - np.array(mses)))
-    ax.set_ylabel('MMSE Gap $(\epsilon)$')
-    ax.set_xlabel('log SNR ($\gamma$)')
-    ax.legend()
-
-    fig.set_tight_layout(True)
-
-    return fig
-
-def viz_multiple(mses, log_eigs, logsnrs, d, train_loss, val_loss, nll):
-    """Visualization for multiple mse curves and loss curves"""
-    cmap = sns.color_palette("flare", as_cmap=True)
-
-    length = len(mses)
-    epochs = len(val_loss)
-    niter = len(train_loss)
-
-    fig, axs = plt.subplots(2, 1, sharex=False, sharey=False, figsize=(6, 7))
-
-    ax = axs[0]
-    ax.plot(np.arange(1, niter+1), train_loss[:niter], '--o', label='train_loss')
-    ax.plot(np.arange(0, epochs), val_loss[:epochs], '-o', label='test_loss')
-    ax.plot(np.arange(0, epochs), nll[:epochs], '-o', label='test_nll')
-    ax.legend()
-    ax.set_ylabel('NLL (bpd)')
-    ax.set_xlabel('Epochs')
-    ax.set_title('DDPM')    
-
-    base_logsnrs = t.linspace(logsnrs[0][0], logsnrs[0][-1], 100)
-    base_baseline = np.array([d / (1. + np.exp(-logsnr)) for logsnr in base_logsnrs])
-    base_baseline2 = t.sigmoid(base_logsnrs + log_eigs.view((-1, 1))).sum(axis=0).numpy()
-
-    ax = axs[1]
-    ax.plot(base_logsnrs, base_baseline, label='$N(0,1)$ MMSE')
-    ax.plot(base_logsnrs, base_baseline2, lw=3, label='$N(\mu,\Sigma)$ MMSE')
-    cnt = 0
-    for y, x in zip(mses[:length], logsnrs[:length]):
-        if cnt == 0:
-            ax.plot(x, y, label=f'before fine-tuning') 
-        else:
-            ax.plot(x, y, color=cmap((cnt)/len(mses)), label=f'epoch{cnt}')
-        cnt += 1
-
-    ax.set_ylabel('$E[(\epsilon - \hat \epsilon)^2]$')
-    ax.set_xlabel('log SNR ($\gamma$)')
-    ax.legend(fontsize = 'x-small')
+sns.set_context("paper", font_scale=1, rc={"lines.linewidth": 2.5})
 
 def viz_change_mse(mses, log_eigs, logsnrs, d):
-    """Visualization for multiple mse curves only (IDDPM and DDPM)"""
+    """Visualization for multiple mse curves (IDDPM and DDPM)"""
     cmap = sns.color_palette("ch:start=.2,rot=-.3", as_cmap=True)
 
     length = len(mses) // 2
@@ -100,18 +32,9 @@ def viz_change_mse(mses, log_eigs, logsnrs, d):
             ax.plot(x, y, color=cmap((cnt)/len(mses)), label=f'epoch{cnt}')
         cnt += 1
 
-    # cnt = 0
-    # for y, x in zip(mses[length:], logsnrs[length:]):
-    #     if cnt == 0:
-    #         ax.plot(x, y, label=f'before fine-tuning') 
-    #     else:
-    #         ax.plot(x, y, color=cmap(cnt/len(mses)), label=f'epoch{cnt}_iddpm')
-    #     cnt += 1
-
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon)^2]$')
     ax.set_xlabel('log SNR ($\gamma$)')
     ax.set_yticks([0, d/4, d/2, 3*d/4, d], ['0', 'd/4', 'd/2', '3d/4', 'd'])
-    # ax.legend(fontsize = 'x-small')
     ax.set_title('DDPM')
 
     base_logsnrs = t.linspace(logsnrs[length-1][0], logsnrs[length-1][-1], 100)
@@ -139,7 +62,7 @@ def viz_change_mse(mses, log_eigs, logsnrs, d):
     return fig
 
 def viz_change_loss(train_loss, val_loss, nll):
-    """Visualization for multiple loss curves only (IDDPM and DDPM)"""
+    """Visualization for multiple loss values (IDDPM and DDPM)"""
     cmap = sns.color_palette("ch:start=.2,rot=-.3", as_cmap=True)
 
     fig, axs = plt.subplots(2, 1, sharex=False, sharey=False, figsize=(6, 5))
@@ -174,24 +97,15 @@ def plot_mse_loss():
     train_loss = []
     test_loss = []
     nll = []
-    var = [] # add variations
     epoch = 10
 
-    covariance = t.load('./scripts/cifar_covariance.pt')
+    covariance = t.load('./covariance/cifar_covariance.pt')
     mu, U, log_eigs = covariance
 
-    # load one test result 
-    # x = np.load(f'/home/theo/Research_Results/debug/iid_sampler/train_bs64/ddpm_results_epoch1_bs1.npy', allow_pickle=True)
-    # mses = x[0]['mses']
-    # logsnrs = x[0]['logsnr']
-    # print(x[0]['nll (nats)'], x[1])
-    # fig = viz_one(mses, log_eigs, logsnrs, 32*32*3)
-    # plt.show()
-
     # load ddpm mse curves and loss
-    train_loss1 = np.load(f'./results/fine_tune/ddpm/train_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    train_loss1 = np.load(f'./results/fine_tune/ddpm/train_loss_all.npy', allow_pickle=True) / 32 / 32 / 3 / np.log(2.0)
     train_loss.extend(train_loss1.tolist()[:epoch])
-    test_loss1 = np.load(f'./results/fine_tune/ddpm/test_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    test_loss1 = np.load(f'./results/fine_tune/ddpm/test_loss_all.npy', allow_pickle=True) / 32 / 32 / 3 / np.log(2.0)
     test_loss.extend(test_loss1.tolist()[:epoch+1])
     for i in range(epoch+1):
         x = np.load(f'./results/fine_tune/ddpm/results_epoch{i}.npy', allow_pickle=True)
@@ -200,9 +114,10 @@ def plot_mse_loss():
         nll.append(x.item()['nll (bpd)'].cpu().numpy())
 
     # load iddpm mse curves and loss
-    train_loss2 = np.load(f'./results/fine_tune/iddpm/train_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    train_loss2 = np.load(f'./results/fine_tune/iddpm/train_loss_all.npy', allow_pickle=True) / 32 / 32 / 3 / np.log(
+        2.0)
     train_loss.extend(train_loss2.tolist()[:epoch])
-    test_loss2 = np.load(f'./results/fine_tune/iddpm/test_loss_all.npy', allow_pickle=True)/32/32/3/np.log(2.0)
+    test_loss2 = np.load(f'./results/fine_tune/iddpm/test_loss_all.npy', allow_pickle=True) / 32 / 32 / 3 / np.log(2.0)
     test_loss.extend(test_loss2.tolist()[:epoch+1])
     for i in range(epoch+1):
         x = np.load(f'./results/fine_tune/iddpm/results_epoch{i}.npy', allow_pickle=True)
@@ -210,32 +125,25 @@ def plot_mse_loss():
         logsnrs.append(x.item()['logsnr'])
         nll.append(x.item()['nll (bpd)'].cpu().numpy())
 
-    print("train loss: {} \n test loss: {}".format(train_loss, test_loss))
-    print('test nll:', nll)
-
+    print("train loss: {} \ntest loss: {} \ntest nll:{}".format(train_loss, test_loss, nll))
 
     fig1 = viz_change_mse(mses, log_eigs, logsnrs, 32*32*3)
     fig2 = viz_change_loss(train_loss, test_loss, nll)
-    # fig3 = viz_multiple(mses, log_eigs, logsnrs, 32*32*3, train_loss, test_loss, nll)
     fig1.savefig(f'./results/figs/MSE.png')
     fig2.savefig(f'./results/figs/LOSS.png')
     fig1.savefig(f'./results/figs/MSE.pdf')
     fig2.savefig(f'./results/figs/LOSS.pdf')
-    # plt.show()
 
 def process_results():
     ddpm = np.load('./results/fine_tune/ddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
     iddpm = np.load('./results/fine_tune/iddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
     ddpm_tune = np.load('./results/fine_tune/ddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
     iddpm_tune = np.load('./results/fine_tune/iddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
-    # iddpm_tune_soft = np.load('./results/variance/iddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
-    # ddpm_tune_soft = np.load('./results/variance/ddpm-softUNet/results_epoch10.npy', allow_pickle=True)[0]
 
     # Properties of data used
-    delta = 2. / 255
     d = 32 * 32 * 3
     clip = 4
-    log_eigs = t.load('./scripts/cifar_covariance.pt')[2]  # Load cached spectrum for speed
+    log_eigs = t.load('./covariance/cifar_covariance.pt')[2]  # Load cached spectrum for speed
     h_g = 0.5 * d * math.log(2 * math.pi * math.e) + 0.5 * log_eigs.sum().item()
     mmse_g = ddpm['mmse_g']
     logsnr = ddpm['logsnr'] # With the same random seed on the same device, logsnrs are the same
@@ -250,14 +158,10 @@ def process_results():
         nll_nats = h_g - 0.5 * (w * (mmse_g.cpu() - mses.cpu())).mean()
         return nll_nats / math.log(2) / d
 
-    # def disc_bpd_from_mse(logsnr, mses):
-    #     return 0.5 * t.trapz(mses, logsnr) / math.log(2) / d
-
     def disc_bpd_from_mse(w, mses):
         return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
 
-    # I'm neglecting right and left tail below, but the bounds are several decimals past what we are showing.
-    
+    # Neglect right and left tail below, but the bounds are several decimals past what we are showing.
     min_mse = reduce(t.minimum, [mmse_g, iddpm_tune['mses'], iddpm['mses'], ddpm_tune['mses'], ddpm['mses']]) 
     nll_bpd = cont_bpd_from_mse(w, min_mse)
 
@@ -269,6 +173,7 @@ def process_results():
 
     cmap2 = sns.color_palette("Paired")
     cmap = sns.color_palette()
+
     # Continuous
     fig, ax = plt.subplots(1)
     fig.set_size_inches(10, 6, forward=True)
@@ -287,7 +192,6 @@ def process_results():
     
     fig.set_tight_layout(True)
     # fig.savefig('./results/figs/cont_density.pdf')
-    # fig.subplots_adjust(left=0, bottom=0, right=1, top=0.9, wspace=None, hspace=None)
 
     # Discrete
     fig, ax = plt.subplots(1)
@@ -300,9 +204,6 @@ def process_results():
     ax.plot(logsnr, iddpm['mses_round_xhat'],label='round(IDDPM)', color=cmap2[9])
     ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--',label='round(DDPM-tuned)', color=cmap2[4])
     ax.plot(logsnr, iddpm_tune['mses_round_xhat'], '--', label='round(IDDPM-tuned)', color=cmap2[8])
-
-    # ax.plot(ddpm_tune_soft['logsnr'], ddpm_tune_soft['mses_round_xhat'], label='round(DDPM-tuned)')
-    # ax.plot(iddpm_tune_soft['logsnr'], iddpm_tune_soft['mses_round_xhat'], label='round(IDDPM-tuned)')
 
     ax.set_xlabel('$\\alpha$ (log SNR)')
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
@@ -342,18 +243,16 @@ def process_results():
     print('IDDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(iddpm_tune['nll (bpd) - std'], iddpm_tune['nll-discrete (bpd) - std'], iddpm_tune['nll (bpd) - dequantize - std']))
 
 def process_results_disc():
-    ddpm = np.load('./results/npoints/ddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/npoints/iddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
-
-    # import IPython; IPython.embed()
+    ddpm = np.load('./results/npoints/ddpm/results_epoch0.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/npoints/iddpm/results_epoch0.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10.npy', allow_pickle=True)[0]
 
     # Properties of data used
     delta = 2. / 255
     d = 32 * 32 * 3
     clip = 4
-    log_eigs = t.load('./scripts/cifar_covariance.pt')[2]  # Load cached spectrum for speed
+    log_eigs = t.load('./covariance/cifar_covariance.pt')[2]  # Load cached spectrum for speed
     logsnr = iddpm['logsnr'] # With the same random seed on the same device, logsnrs are the same
     w = iddpm['w']
 
@@ -367,8 +266,7 @@ def process_results_disc():
     def disc_bpd_from_mse(w, mses):
         return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
 
-    # I'm neglecting right and left tail below, but the bounds are several decimals past what we are showing.
-
+    # Neglecting right and left tail below, but the bounds are several decimals past what we are showing.
     min_mse_discrete = reduce(t.minimum, [ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'], ddpm['mses_round_xhat'], iddpm['mses_round_xhat']]) #  iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
     nll_bpd_discrete = disc_bpd_from_mse(w, min_mse_discrete)
 
@@ -414,11 +312,8 @@ def process_results_disc():
     print('DDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(ddpm_tune['nll-discrete (bpd) - std']))
     print('IDDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(iddpm_tune['nll-discrete (bpd) - std']))
 
-def main():
-    # plot_mse_loss()
-    # process_results()
-    process_results_disc()
-
 
 if __name__ == "__main__":
-    main()
+    # plot_mse_loss() # plot Fig. 5 & 6 in section B.2
+    process_results() # plot Fig. 2 & 3 in section 5, and print Table 1
+    # process_results_disc()

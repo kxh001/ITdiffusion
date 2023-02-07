@@ -1,7 +1,6 @@
 import argparse
 import os
 import numpy as np
-import torch.distributed as dist
 import torch as t
 
 from utilsitd import logger
@@ -82,9 +81,8 @@ def create_argparser():
         data_test_dir="",  
         train_batch_size=128, 
         test_batch_size=256,
-        model_path="", 
-        model_config_path="", # only ddpm from Hugging face needs config_path
-        lr=2e-4,
+        model_path="",
+        lr=2.5e-5,
         epoch=10,
         iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
         wrapped=True, # 'True' if using models wrapped with logsnr2t function, else 'False'
