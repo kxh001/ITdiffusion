@@ -64,9 +64,9 @@ def main():
 
     logger.log("fine tune model...")
     if args.test:
-        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', verbose=True)
+        diffusion.fit(data_train, data_test, epochs=args.epoch, lr=args.lr, use_optimizer='adam', npoints=args.npoints, verbose=True)
     else:
-        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
+        diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam', npoints=args.npoints)
 
     logger.log("save results...")
     out_path = os.path.join(logger.get_dir(), f"train_loss_all.npy")
@@ -84,6 +84,7 @@ def create_argparser():
         model_path="",
         lr=2.5e-5,
         epoch=10,
+        npoints=100,
         iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
         wrapped=True, # 'True' if using models wrapped with logsnr2t function, else 'False'
         diagonal = False, # 'True' if data size is too large to compute covariance matrix from limited data, else 'False'

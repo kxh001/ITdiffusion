@@ -234,7 +234,7 @@ class DiffusionModel(nn.Module):
         else:
             self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
 
-    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
+    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, npoints=100, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
            See image_datasets.py for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
@@ -272,7 +272,7 @@ class DiffusionModel(nn.Module):
                 print("testing ...")
                 self.eval()
                 with t.no_grad():
-                    results, val_loss = self.test_nll(dataloader_test, npoints=100, delta=1./127.5, xinterval=(-1, 1), soft=True)
+                    results, val_loss = self.test_nll(dataloader_test, npoints=npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
                     out_path = os.path.join(logger.get_dir(), f"results_epoch{i}.npy") 
                     np.save(out_path, results) 
                     self.logs['val loss'].append(val_loss)
