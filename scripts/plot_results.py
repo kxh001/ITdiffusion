@@ -10,7 +10,7 @@ plt.style.use('seaborn-paper')
 sns.set(style="whitegrid")
 sns.set_context("paper", font_scale=1, rc={"lines.linewidth": 2.5})
 
-def viz_change_mse(mses, log_eigs, logsnrs, d):
+def viz_mse_change(mses, log_eigs, logsnrs, d):
     """Visualization for multiple mse curves (IDDPM and DDPM)"""
     cmap = sns.color_palette("ch:start=.2,rot=-.3", as_cmap=True)
 
@@ -61,7 +61,7 @@ def viz_change_mse(mses, log_eigs, logsnrs, d):
 
     return fig
 
-def viz_change_loss(train_loss, val_loss, nll):
+def viz_loss_change(train_loss, val_loss, nll):
     """Visualization for multiple loss values (IDDPM and DDPM)"""
     cmap = sns.color_palette("ch:start=.2,rot=-.3", as_cmap=True)
 
@@ -127,54 +127,42 @@ def plot_mse_loss():
 
     print("train loss: {} \ntest loss: {} \ntest nll:{}".format(train_loss, test_loss, nll))
 
-    fig1 = viz_change_mse(mses, log_eigs, logsnrs, 32*32*3)
-    fig2 = viz_change_loss(train_loss, test_loss, nll)
+    fig1 = viz_mse_change(mses, log_eigs, logsnrs, 32*32*3)
+    fig2 = viz_loss_change(train_loss, test_loss, nll)
     fig1.savefig(f'./results/figs/MSE.png')
     fig2.savefig(f'./results/figs/LOSS.png')
     fig1.savefig(f'./results/figs/MSE.pdf')
     fig2.savefig(f'./results/figs/LOSS.pdf')
 
-def process_results():
-    ddpm = np.load('./results/fine_tune/ddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/fine_tune/iddpm_soft/results_epoch0.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/fine_tune/ddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/fine_tune/iddpm_soft/results_epoch10.npy', allow_pickle=True)[0]
+def plot_mse_comparison():
+    ddpm = np.load('./results/fine_tune/ddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/fine_tune/iddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/fine_tune/ddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/fine_tune/iddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
 
     # Properties of data used
     d = 32 * 32 * 3
     clip = 4
     log_eigs = t.load('./covariance/cifar_covariance.pt')[2]  # Load cached spectrum for speed
-    h_g = 0.5 * d * math.log(2 * math.pi * math.e) + 0.5 * log_eigs.sum().item()
     mmse_g = ddpm['mmse_g']
-    logsnr = ddpm['logsnr'] # With the same random seed on the same device, logsnrs are the same
-    mmse_g_1 = d / (1+np.exp(-logsnr))
+    logsnr = ddpm['logsnr']  # With the same random seed on the same device, logsnrs are the same
+    mmse_g_1 = d / (1 + np.exp(-logsnr))
     # Used to estimate good range for integration
     loc_logsnr = -log_eigs.mean().item()
     scale_logsnr = t.sqrt(1 + 3. / math.pi * log_eigs.var()).item()
-    w = scale_logsnr * np.tanh(clip / 2) / (expit((logsnr - loc_logsnr)/scale_logsnr) * expit(-(logsnr - loc_logsnr)/scale_logsnr))
-    w = t.tensor(w)
+    w = scale_logsnr * np.tanh(clip / 2) / (
+                expit((logsnr - loc_logsnr) / scale_logsnr) * expit(-(logsnr - loc_logsnr) / scale_logsnr))
 
-    def cont_bpd_from_mse(w, mses):
-        nll_nats = h_g - 0.5 * (w * (mmse_g.cpu() - mses.cpu())).mean()
-        return nll_nats / math.log(2) / d
+    min_mse = reduce(t.minimum, [mmse_g, iddpm_tune['mses'], iddpm['mses'], ddpm_tune['mses'], ddpm['mses']])
 
-    def disc_bpd_from_mse(w, mses):
-        return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
-
-    # Neglect right and left tail below, but the bounds are several decimals past what we are showing.
-    min_mse = reduce(t.minimum, [mmse_g, iddpm_tune['mses'], iddpm['mses'], ddpm_tune['mses'], ddpm['mses']]) 
-    nll_bpd = cont_bpd_from_mse(w, min_mse)
-
-    min_mse_discrete = reduce(t.minimum, [mmse_g, ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'], ddpm['mses_round_xhat'], iddpm['mses_round_xhat']]) #  iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
-    nll_bpd_discrete = disc_bpd_from_mse(w, min_mse_discrete)
-
-    min_deq = reduce(t.minimum, [mmse_g, ddpm['mses_dequantize'], iddpm['mses_dequantize'], ddpm_tune['mses_dequantize'], iddpm_tune['mses_dequantize']])
-    ens_deq = cont_bpd_from_mse(w, min_deq) + np.log(127.5)/np.log(2)
+    min_mse_discrete = reduce(t.minimum, [mmse_g, ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'],
+                                          ddpm['mses_round_xhat'], iddpm[
+                                              'mses_round_xhat']])  # iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
 
     cmap2 = sns.color_palette("Paired")
     cmap = sns.color_palette()
 
-    # Continuous
+    # Continuous (Fig. 1)
     fig, ax = plt.subplots(1)
     fig.set_size_inches(10, 6, forward=True)
     ax.plot(logsnr, mmse_g_1, label='MMSE$_\epsilon$ for $N(0, I)$', color=cmap[1])
@@ -186,134 +174,198 @@ def process_results():
     ax.set_xlabel('$\\alpha$ (log SNR)')
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
     ax.fill_between(logsnr, min_mse, ddpm['mmse_g'], alpha=0.1)
-    ax.set_yticks([0, d/4, d/2, 3*d/4, d])
+    ax.set_yticks([0, d / 4, d / 2, 3 * d / 4, d])
     ax.set_yticklabels(['0', 'd/4', 'd/2', '3d/4', 'd'])
     ax.legend(loc='lower right')
-    
-    fig.set_tight_layout(True)
-    # fig.savefig('./results/figs/cont_density.pdf')
 
-    # Discrete
+    fig.set_tight_layout(True)
+    fig.savefig('./results/figs/cont_density.pdf')
+
+    # Discrete (Fig. 2)
     fig, ax = plt.subplots(1)
     fig.set_size_inches(10, 6, forward=True)
     ax.plot(logsnr, ddpm['mses'], label='DDPM', color=cmap2[0])
     ax.plot(logsnr, iddpm['mses'], label='IDDPM', color=cmap2[2])
     ax.plot(logsnr, ddpm_tune['mses'], label='DDPM-tuned', color=cmap2[1])
     ax.plot(logsnr, iddpm_tune['mses'], label='IDDPM-tuned', color=cmap2[3])
-    ax.plot(logsnr, ddpm['mses_round_xhat'],label='round(DDPM)', color=cmap2[5])
-    ax.plot(logsnr, iddpm['mses_round_xhat'],label='round(IDDPM)', color=cmap2[9])
-    ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--',label='round(DDPM-tuned)', color=cmap2[4])
+    ax.plot(logsnr, ddpm['mses_round_xhat'], label='round(DDPM)', color=cmap2[5])
+    ax.plot(logsnr, iddpm['mses_round_xhat'], label='round(IDDPM)', color=cmap2[9])
+    ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--', label='round(DDPM-tuned)', color=cmap2[4])
     ax.plot(logsnr, iddpm_tune['mses_round_xhat'], '--', label='round(IDDPM-tuned)', color=cmap2[8])
 
     ax.set_xlabel('$\\alpha$ (log SNR)')
     ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
     ax.fill_between(logsnr, min_mse_discrete, alpha=0.1)
-    ax.set_yticks([0, d/4, d/2, 3*d/4, d])
+    ax.set_yticks([0, d / 4, d / 2, 3 * d / 4, d])
     ax.set_yticklabels(['0', 'd/4', 'd/2', '3d/4', 'd'])
     ax.legend(loc='upper left')
 
     fig.set_tight_layout(True)
-    # fig.savefig('./results/figs/disc_density.pdf')
-    plt.show()
+    fig.savefig('./results/figs/disc_density.pdf')
 
-
-    # Output table numbers
-    print('Continuous')
-    print('DDPM &  &  & {:.2f} \\\\'.format(ddpm['nll (bpd)']))
-    print('IDDPM &  &  & {:.2f} \\\\'.format(iddpm['nll (bpd)']))
-    print('\\midrule')
-    print('DDPM(tune)&  &  & {:.2f} \\\\'.format(ddpm_tune['nll (bpd)']))
-    print('IDDPM(tune) &  &  & {:.2f} \\\\'.format(iddpm_tune['nll (bpd)']))
-    print('\\midrule')
-    print('Ensemble &  &  & {:.2f} \\\\'.format(nll_bpd))
-
-    print('\n\n\nDiscrete')
-    print('DDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat']), ddpm['nll-discrete-limit (bpd) - dequantize']))
-    print('IDDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat']), iddpm['nll-discrete-limit (bpd) - dequantize']))
-    print('\\midrule')
-    print('DDPM(tune)&  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat']),ddpm_tune['nll-discrete-limit (bpd) - dequantize']))
-    print('IDDPM(tune) &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat']), iddpm_tune['nll-discrete-limit (bpd) - dequantize']))
-    print('\\midrule')
-    print('Ensemble &  &  {:.2f} & {:.2f} \\\\'.format(nll_bpd_discrete, ens_deq))
-
-    # variants
-    print('DDPM - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(ddpm['nll (bpd) - std'], ddpm['nll-discrete (bpd) - std'], ddpm['nll (bpd) - dequantize - std']))
-    print('IDDPM - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(iddpm['nll (bpd) - std'], iddpm['nll-discrete (bpd) - std'], iddpm['nll (bpd) - dequantize - std']))
-    print('DDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(ddpm_tune['nll (bpd) - std'], ddpm_tune['nll-discrete (bpd) - std'], ddpm_tune['nll (bpd) - dequantize - std']))
-    print('IDDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(iddpm_tune['nll (bpd) - std'], iddpm_tune['nll-discrete (bpd) - std'], iddpm_tune['nll (bpd) - dequantize - std']))
-
-def process_results_disc():
-    ddpm = np.load('./results/npoints/ddpm/results_epoch0.npy', allow_pickle=True)[0]
-    iddpm = np.load('./results/npoints/iddpm/results_epoch0.npy', allow_pickle=True)[0]
-    ddpm_tune = np.load('./results/npoints/ddpm/results_epoch10.npy', allow_pickle=True)[0]
-    iddpm_tune = np.load('./results/npoints/iddpm/results_epoch10.npy', allow_pickle=True)[0]
+def print_tables():
+    ddpm = np.load('./results/fine_tune/ddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    iddpm = np.load('./results/fine_tune/iddpm/results_epoch0_1000.npy', allow_pickle=True)[0]
+    ddpm_tune = np.load('./results/fine_tune/ddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
+    iddpm_tune = np.load('./results/fine_tune/iddpm/results_epoch10_1000.npy', allow_pickle=True)[0]
 
     # Properties of data used
-    delta = 2. / 255
     d = 32 * 32 * 3
     clip = 4
     log_eigs = t.load('./covariance/cifar_covariance.pt')[2]  # Load cached spectrum for speed
-    logsnr = iddpm['logsnr'] # With the same random seed on the same device, logsnrs are the same
-    w = iddpm['w']
-
+    h_g = 0.5 * d * math.log(2 * math.pi * math.e) + 0.5 * log_eigs.sum().item()
+    mmse_g = ddpm['mmse_g']
+    logsnr = ddpm['logsnr']  # With the same random seed on the same device, logsnrs are the same
     # Used to estimate good range for integration
-    # loc_logsnr = -log_eigs.mean().item()
-    # scale_logsnr = t.sqrt(1 + 3. / math.pi * log_eigs.var()).item()
-    # w = scale_logsnr * np.tanh(clip / 2) / (expit((logsnr - loc_logsnr)/scale_logsnr) * expit(-(logsnr - loc_logsnr)/scale_logsnr))
-    # w = t.tensor(w)
+    loc_logsnr = -log_eigs.mean().item()
+    scale_logsnr = t.sqrt(1 + 3. / math.pi * log_eigs.var()).item()
+    w = scale_logsnr * np.tanh(clip / 2) / (
+                expit((logsnr - loc_logsnr) / scale_logsnr) * expit(-(logsnr - loc_logsnr) / scale_logsnr))
+    # select 100 logsnrs out of 1k
+    seed = [1024, 123, 7, 10, 11, 14, 15, 18, 19, 30]
 
+    ddpm_nll_bpd = []
+    iddpm_nll_bpd = []
+    ddpm_tune_nll_bpd = []
+    iddpm_tune_nll_bpd = []
+    ddpm_nll_deq_bpd = []
+    iddpm_nll_deq_bpd = []
+    ddpm_tune_nll_deq_bpd = []
+    iddpm_tune_nll_deq_bpd = []
+    ddpm_nll_bpd_disc = []
+    iddpm_nll_bpd_disc = []
+    ddpm_tune_nll_bpd_disc = []
+    iddpm_tune_nll_bpd_disc = []
+    nll_bpd = []
+    nll_bpd_discrete = []
+    ens_deq = []
+
+    def cont_bpd_from_mse(w, mses, mmse_g):
+        nll_nats = h_g - 0.5 * (w * t.clamp(mmse_g.cpu() - mses.cpu(), 0.)).mean()
+        return nll_nats / math.log(2) / d
 
     def disc_bpd_from_mse(w, mses):
         return 0.5 * (w * mses.cpu()).mean() / math.log(2) / d
 
-    # Neglecting right and left tail below, but the bounds are several decimals past what we are showing.
-    min_mse_discrete = reduce(t.minimum, [ddpm['mses'], iddpm['mses'], iddpm_tune['mses'], ddpm_tune['mses'], ddpm['mses_round_xhat'], iddpm['mses_round_xhat']]) #  iddpm_tune_soft['mses_round_xhat'], ddpm_tune_soft['mses_round_xhat']
-    nll_bpd_discrete = disc_bpd_from_mse(w, min_mse_discrete)
+    min_mse_1000 = reduce(t.minimum, [mmse_g, iddpm_tune['mses'], iddpm['mses'], ddpm_tune['mses'], ddpm['mses']])
+    nll_bpd_1000 = cont_bpd_from_mse(w, min_mse_1000, mmse_g)
+    min_mse_discrete_1000 = reduce(t.minimum, [mmse_g, ddpm['mses'], iddpm['mses'], iddpm_tune['mses'],
+                                          ddpm_tune['mses'], ddpm['mses_round_xhat'],
+                                          iddpm['mses_round_xhat']])
+    nll_bpd_discrete_1000 = disc_bpd_from_mse(w, min_mse_discrete_1000)
+    min_deq_1000 = reduce(t.minimum,
+                     [mmse_g, ddpm['mses_dequantize'], iddpm['mses_dequantize'], ddpm_tune['mses_dequantize'],
+                      iddpm_tune['mses_dequantize']])
+    ens_deq_1000 = cont_bpd_from_mse(w, min_deq_1000, mmse_g) + np.log(127.5) / np.log(2)
 
-    cmap2 = sns.color_palette("Paired")
-    cmap = sns.color_palette()
+    for sd in seed:
+        t.manual_seed(sd)
+        idx, _ = t.randint(0, 1000, (100,)).sort()
+        mmse_g_idx = ddpm['mmse_g'][idx]
+        logsnr_idx = ddpm['logsnr'][idx]  # With the same random seed on the same device, logsnrs are the same
+        # Used to estimate good range for integration
+        loc_logsnr = -log_eigs.mean().item()
+        scale_logsnr = t.sqrt(1 + 3. / math.pi * log_eigs.var()).item()
+        w_idx = scale_logsnr * np.tanh(clip / 2) / (
+                    expit((logsnr_idx - loc_logsnr) / scale_logsnr) * expit(-(logsnr_idx - loc_logsnr) / scale_logsnr))
 
-    # Discrete
-    fig, ax = plt.subplots(1)
-    fig.set_size_inches(10, 6, forward=True)
-    ax.plot(logsnr, ddpm['mses'], label='DDPM', color=cmap2[0])
-    ax.plot(logsnr, iddpm['mses'], label='IDDPM', color=cmap2[2])
-    ax.plot(logsnr, ddpm_tune['mses'], label='DDPM-tuned', color=cmap2[1])
-    ax.plot(logsnr, iddpm_tune['mses'], label='IDDPM-tuned', color=cmap2[3])
-    ax.plot(logsnr, ddpm['mses_round_xhat'],label='round(DDPM)', color=cmap2[5])
-    ax.plot(logsnr, iddpm['mses_round_xhat'],label='round(IDDPM)', color=cmap2[9])
-    ax.plot(logsnr, ddpm_tune['mses_round_xhat'], '--',label='round(DDPM-tuned)', color=cmap2[4])
-    ax.plot(logsnr, iddpm_tune['mses_round_xhat'], '--', label='round(IDDPM-tuned)', color=cmap2[8])
-    ax.set_xlabel('$\\alpha$ (log SNR)')
-    ax.set_ylabel('$E[(\epsilon - \hat \epsilon(z_\\alpha, \\alpha))^2]$')
-    ax.fill_between(logsnr, min_mse_discrete, alpha=0.1)
-    ax.set_yticks([0, d/4, d/2, 3*d/4, d])
-    ax.set_yticklabels(['0', 'd/4', 'd/2', '3d/4', 'd'])
-    ax.legend(loc='upper left')
+        min_mse = reduce(t.minimum, [mmse_g_idx, iddpm_tune['mses'][idx], iddpm['mses'][idx], ddpm_tune['mses'][idx],
+                                     ddpm['mses'][idx]])
+        nll_bpd.append(cont_bpd_from_mse(w_idx, min_mse, mmse_g_idx))
 
-    fig.set_tight_layout(True)
-    # fig.savefig('./results/figs/disc_density.pdf')
-    plt.show()
+        min_mse_discrete = reduce(t.minimum, [mmse_g_idx, ddpm['mses'][idx], iddpm['mses'][idx], iddpm_tune['mses'][idx],
+                                              ddpm_tune['mses'][idx], ddpm['mses_round_xhat'][idx],
+                                              iddpm['mses_round_xhat'][idx]])
+        nll_bpd_discrete.append(disc_bpd_from_mse(w_idx, min_mse_discrete))
 
+        min_deq = reduce(t.minimum, [mmse_g_idx, ddpm['mses_dequantize'][idx], iddpm['mses_dequantize'][idx],
+                                     ddpm_tune['mses_dequantize'][idx], iddpm_tune['mses_dequantize'][idx]])
+        ens_deq.append(cont_bpd_from_mse(w_idx, min_deq, mmse_g_idx) + np.log(127.5) / np.log(2))
 
-    # Output table numbers
-    print('Discrete')
-    print('DDPM &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat'])))
-    print('IDDPM &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat'])))
+        ddpm_nll_bpd.append(cont_bpd_from_mse(w_idx, ddpm['mses'][idx], mmse_g_idx))
+        iddpm_nll_bpd.append(cont_bpd_from_mse(w_idx, iddpm['mses'][idx], mmse_g_idx))
+        ddpm_tune_nll_bpd.append(cont_bpd_from_mse(w_idx, ddpm_tune['mses'][idx], mmse_g_idx))
+        iddpm_tune_nll_bpd.append(cont_bpd_from_mse(w_idx, iddpm_tune['mses'][idx], mmse_g_idx))
+
+        ddpm_nll_deq_bpd.append(cont_bpd_from_mse(w_idx, ddpm['mses_dequantize'][idx], mmse_g_idx) + np.log(127.5) / np.log(2))
+        iddpm_nll_deq_bpd.append(cont_bpd_from_mse(w_idx, iddpm['mses_dequantize'][idx], mmse_g_idx) + np.log(127.5) / np.log(2))
+        ddpm_tune_nll_deq_bpd.append(
+            cont_bpd_from_mse(w_idx, ddpm_tune['mses_dequantize'][idx], mmse_g_idx) + np.log(127.5) / np.log(2))
+        iddpm_tune_nll_deq_bpd.append(
+            cont_bpd_from_mse(w_idx, iddpm_tune['mses_dequantize'][idx], mmse_g_idx) + np.log(127.5) / np.log(2))
+
+        ddpm_nll_bpd_disc.append(disc_bpd_from_mse(w_idx, ddpm['mses_round_xhat'][idx]))
+        iddpm_nll_bpd_disc.append(disc_bpd_from_mse(w_idx, iddpm['mses_round_xhat'][idx]))
+        ddpm_tune_nll_bpd_disc.append(disc_bpd_from_mse(w_idx, ddpm_tune['mses_round_xhat'][idx]))
+        iddpm_tune_nll_bpd_disc.append(disc_bpd_from_mse(w_idx, iddpm_tune['mses_round_xhat'][idx]))
+
+    print('Continuous (Table 1)')
+    print('DDPM &  &  & {:.2f} \\\\'.format(np.mean(ddpm_nll_bpd)))
+    print('IDDPM &  &  & {:.2f} \\\\'.format(np.mean(iddpm_nll_bpd)))
     print('\\midrule')
-    print('DDPM(tune)&  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat'])))
-    print('IDDPM(tune) &  & {:.2f} &  \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat'])))
+    print('DDPM(tune)&  &  & {:.2f} \\\\'.format(np.mean(ddpm_tune_nll_bpd)))
+    print('IDDPM(tune) &  &  & {:.2f} \\\\'.format(np.mean(iddpm_tune_nll_bpd)))
     print('\\midrule')
-    print('Ensemble &  &  {:.2f} &  \\\\'.format(nll_bpd_discrete))
+    print('Ensemble &  &  & {:.2f} \\\\'.format(np.mean(nll_bpd)))
+
+    print('\n\n\nDiscrete (Table 2)')
+    print('DDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat']),
+                                                  np.mean(ddpm_nll_deq_bpd)))
+    print('IDDPM &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat']),
+                                                   np.mean(iddpm_nll_deq_bpd)))
+    print('\\midrule')
+    print('DDPM(tune)&  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat']),
+                                                       np.mean(ddpm_tune_nll_deq_bpd)))
+    print('IDDPM(tune) &  & {:.2f} & {:.2f} \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat']),
+                                                         np.mean(iddpm_tune_nll_deq_bpd)))
+    print('\\midrule')
+    print('Ensemble &  &  {:.2f} & {:.2f} \\\\'.format(nll_bpd_discrete_1000, np.mean(ens_deq)))
 
     # variants
-    print('DDPM - nll-discrete (bpd) std: {:.5f}'.format(ddpm['nll-discrete (bpd) - std']))
-    print('IDDPM - nll-discrete (bpd) std: {:.5f}'.format(iddpm['nll-discrete (bpd) - std']))
-    print('DDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(ddpm_tune['nll-discrete (bpd) - std']))
-    print('IDDPM-tune - nll-discrete (bpd) std: {:.5f}'.format(iddpm_tune['nll-discrete (bpd) - std']))
+    print('\n\n\nStandard Deviation (Table 3)')
+    print('DDPM - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(
+        ddpm['nll (bpd) - std'], ddpm['nll-discrete (bpd) - std'], ddpm['nll (bpd) - dequantize - std']))
+    print(
+        'IDDPM - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(
+            iddpm['nll (bpd) - std'], iddpm['nll-discrete (bpd) - std'], iddpm['nll (bpd) - dequantize - std']))
+    print(
+        'DDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(
+            ddpm_tune['nll (bpd) - std'], ddpm_tune['nll-discrete (bpd) - std'],
+            ddpm_tune['nll (bpd) - dequantize - std']))
+    print(
+        'IDDPM-tune - nll (bpd) std: {:.5f}, nll-discrete (bpd) std: {:.5f}, nll (bpd) - dequantize std: {:.5f}'.format(
+            iddpm_tune['nll (bpd) - std'], iddpm_tune['nll-discrete (bpd) - std'],
+            iddpm_tune['nll (bpd) - dequantize - std']))
 
+    print('\n\n\nContinuous (Table 4)')
+    print('DDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(ddpm['nll (bpd)'], np.mean(ddpm_nll_bpd), np.std(ddpm_nll_bpd)))
+    print('IDDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(iddpm['nll (bpd)'], np.mean(iddpm_nll_bpd), np.std(iddpm_nll_bpd)))
+    print('\\midrule')
+    print('DDPM(tune) & {:.2f}|{:.5f} \\\\'.format(ddpm_tune['nll (bpd)'], np.mean(ddpm_tune_nll_bpd), np.std(ddpm_tune_nll_bpd)))
+    print('IDDPM(tune) & {:.2f}|{:.5f} \\\\'.format(iddpm_tune['nll (bpd)'], np.mean(iddpm_tune_nll_bpd), np.std(iddpm_tune_nll_bpd)))
+    print('\\midrule')
+    print('Ensemble & {:.2f}|{:.5f} \\\\'.format(nll_bpd_1000, np.mean(nll_bpd), np.std(nll_bpd)))
+
+    print('\n\n\nDiscrete (Table 5)')
+    print('DDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(disc_bpd_from_mse(w, ddpm['mses_round_xhat']), np.mean(ddpm_nll_bpd_disc), np.std(ddpm_nll_bpd_disc)))
+    print('IDDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(disc_bpd_from_mse(w, iddpm['mses_round_xhat']), np.mean(iddpm_nll_bpd_disc), np.std(iddpm_nll_bpd_disc)))
+    print('\\midrule')
+    print('DDPM(tune) & {:.2f} & {:.2f}|{:.5f} \\\\'.format(disc_bpd_from_mse(w, ddpm_tune['mses_round_xhat']), np.mean(ddpm_tune_nll_bpd_disc), np.std(ddpm_tune_nll_bpd_disc)))
+    print('IDDPM(tune) & {:.2f} & {:.2f}|{:.5f} \\\\'.format(disc_bpd_from_mse(w, iddpm_tune['mses_round_xhat']), np.mean(iddpm_tune_nll_bpd_disc), np.std(iddpm_tune_nll_bpd_disc)))
+    print('\\midrule')
+    print('Ensemble & {:.2f} & {:.2f}|{:.5f} \\\\'.format(nll_bpd_discrete_1000, np.mean(nll_bpd_discrete), np.std(nll_bpd_discrete)))
+
+    print('\n\n\nUniform Dequantization (Table 6)')
+    print('DDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(ddpm['nll-discrete-limit (bpd) - dequantize'], np.mean(ddpm_nll_deq_bpd), np.std(ddpm_nll_deq_bpd)))
+    print('IDDPM & {:.2f} & {:.2f}|{:.5f} \\\\'.format(iddpm['nll-discrete-limit (bpd) - dequantize'], np.mean(iddpm_nll_deq_bpd), np.std(iddpm_nll_deq_bpd)))
+    print('\\midrule')
+    print('DDPM(tune) & {:.2f} & {:.2f}|{:.5f} \\\\'.format(ddpm_tune['nll-discrete-limit (bpd) - dequantize'], np.mean(ddpm_tune_nll_deq_bpd), np.std(ddpm_tune_nll_deq_bpd)))
+    print('IDDPM(tune) & {:.2f} & {:.2f}|{:.5f} \\\\'.format(iddpm_tune['nll-discrete-limit (bpd) - dequantize'], np.mean(iddpm_tune_nll_deq_bpd), np.std(iddpm_tune_nll_deq_bpd)))
+    print('\\midrule')
+    print('Ensemble & {:.2f} & {:.2f}|{:.5f} \\\\'.format(ens_deq_1000, np.mean(ens_deq), np.std(ens_deq)))
 
 if __name__ == "__main__":
-    # plot_mse_loss() # plot Fig. 5 & 6 in section B.2
-    process_results() # plot Fig. 2 & 3 in section 5, and print Table 1
-    # process_results_disc()
+    plot_mse_comparison()  # plot Fig. 1 & 2
+    plot_mse_loss() # plot Fig. 5 & 6 in section B.2
+    print_tables() # print ALL Tables
+    print("\n\n\nFor benchmark results, please read the README.md file in './benchmark/improved-diffusion'.")
