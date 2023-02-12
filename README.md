@@ -49,7 +49,7 @@ python ./scripts/fine_tune.py
 ```
 
 ## Models
-- The pre-trianed IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
+- The pre-trained IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
 
 - We use pre-trained DDPM model from Huggingface via '[diffusers](https://github.com/huggingface/diffusers)' library.
 
@@ -62,7 +62,7 @@ Run './script/plot_results.py' to get all figures and tables in the paper.
 @inproceedings{
 kong2023informationtheoretic,
 title={Information-Theoretic Diffusion},
-author={Xianghao Kong and Rob Brekelmans and Greg Ver Steeg},
+author={Xianghao Kong and Rob Brekelmans and Greg {Ver Steeg}},
 booktitle={International Conference on Learning Representations},
 year={2023},
 url={https://openreview.net/forum?id=UvmDCdSPDOW} }
