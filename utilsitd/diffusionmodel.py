@@ -102,16 +102,10 @@ class DiffusionModel(nn.Module):
         loc, scale = self.loc_scale
         logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
+
         # sort logsnrs along with weights
         logsnr, idx = logsnr.sort()
         w = w[idx].to('cpu')
-
-        ## select 100 logsnrs out of 1k (see B.5 VARIANCE ESTIMATES)
-        # t.manual_seed(1024)
-        # idx_r = t.randint(0, npoints, (100,))
-        # logsnr = logsnr[idx_r]
-        # w = w[idx_r]
-
 
         results['logsnr'] = logsnr.to('cpu')
         results['w'] = w
