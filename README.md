@@ -38,14 +38,14 @@ python ./scripts/fine_tune.py
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True --soft False
+--iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True --soft False --npoints 100
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/fine_tune.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --image_size 32
---iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True --soft False
+--iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True --soft False --npoints 100
 ```
 
 ## Models
@@ -55,7 +55,10 @@ python ./scripts/fine_tune.py
 
 
 ## Results
-Run './script/plot_results.py' to get all figures and tables in the paper. 
+Run './script/plot_results.py' to get figures and tables in the paper.
+Note: 
+- For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the README.md file in './benchmark/improved-diffusion'.
+- The results of n=1000 could be downloaded [here](). 
 
 ## BibTeX
 ```
