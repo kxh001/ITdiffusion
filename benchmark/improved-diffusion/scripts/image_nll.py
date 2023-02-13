@@ -84,7 +84,7 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised, cont_
 
 def create_argparser():
     defaults = dict(
-        data_dir="", clip_denoised=True, num_samples=10000, batch_size=256, model_path="", cont_density=True, hugface=True, iddpm=False
+        data_dir="", clip_denoised=True, num_samples=10000, batch_size=256, model_path="", cont_density=True, iddpm=False
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

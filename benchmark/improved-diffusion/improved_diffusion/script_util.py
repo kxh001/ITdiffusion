@@ -4,11 +4,7 @@ import inspect
 from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 from .unet import SuperResModel, UNetModel
-from .unet_ddpm import Model
 from diffusers import UNet2DModel
-import json
-
-NUM_CLASSES = 1000 # CIFAR-10: 10, ImageNet: 1000
 
 
 def model_and_diffusion_defaults():
@@ -52,7 +48,6 @@ def create_model_and_diffusion(
     attention_resolutions,
     dropout,
     iddpm,
-    hugface,
     diffusion_steps,
     noise_schedule,
     timestep_respacing,
@@ -76,7 +71,6 @@ def create_model_and_diffusion(
         use_scale_shift_norm=use_scale_shift_norm,
         dropout=dropout,
         iddpm=iddpm,
-        hugface=hugface,
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
@@ -105,7 +99,6 @@ def create_model(
     use_scale_shift_norm,
     dropout,
     iddpm,
-    hugface,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -137,23 +130,9 @@ def create_model(
             use_scale_shift_norm=use_scale_shift_norm,
         )
     else:
-        if hugface:
-            print("Use DDPM model in Hugging Face...")
-            f = open("/home/theo/Research/checkpoints/ddpm_cifar10_32/config.json")
-            model_config = json.load(f)
-            return UNet2DModel(**model_config)
-        else:
-            print("Use DDPM model...")
-            return Model(
-                ch = 128,
-                out_ch = 3,
-                ch_mult = (1,2,2,2),
-                num_res_blocks = 2,
-                attn_resolutions = (16,),
-                dropout = 0.1,
-                in_channels = 3,
-                resolution = 32,
-            )
+        print("Use DDPM model in Hugging Face...")
+        model_id = "google/ddpm-cifar10-32"
+        return UNet2DModel.from_pretrained(model_id)
 
 
 def sr_model_and_diffusion_defaults():
