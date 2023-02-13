@@ -1,10 +1,13 @@
-# Benchmark -- Variational Bounds
+# Benchmark -- Diffusion Model with Variational Bounds
 
 - We added one more flag 'cont_density' in the original IDDPM codes, which could be found in 
 [losses.py](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/improved_diffusion/losses.py). 
 - If 'cont_density=True', it calculates the **continuous** NLL for diffusion models using variational bounds (the 2nd column in Table 1),
 otherwise, it will calculate the **discrete** NLL (the 1st column in Table 2). 
-- The way to calculate results in the 1st column of Table 1 is $$ \text{discrete NLL} - \frac{log(127.5)}{log(2)} $$.
+- The way to calculate results in the 1st column of Table 1 is:
+
+$$ \text{discrete NLL} - \frac{log(127.5)}{log(2)} $$.
+
 - We don't include the results of benchmark here, you could run command lines in [Run](#3) to get all the results. 
 
 ## Installation
