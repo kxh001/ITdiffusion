@@ -65,9 +65,9 @@ To make it clearer, we summarized methods used in our experiments in the followi
 | Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |
 | Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |
 
-Note: 
-- For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
-- The results
+
+Note: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
+
 ## BibTeX
 ```
 @inproceedings{

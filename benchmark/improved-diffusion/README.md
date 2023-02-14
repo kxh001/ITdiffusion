@@ -17,7 +17,8 @@ pip install -e .
 
 This would install the 'improved-diffusion' python package that scripts depend on. 
 
-<h2 id='3'>Run</h3>
+<h2 id="3"> Run </h2>
+
 1. IDDPM + CIFAR10 + vlb:
 ```
 python ./scripts/image_nll.py
