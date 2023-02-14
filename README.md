@@ -23,15 +23,15 @@ pip install -e .
 
 This would install the 'itdiffusion' python package that scripts depend on. 
 
-## Information Theoretic Diffusion
+## Utilities
 Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model, and then use scripts to output results we desire. 
 
 ## Preparing Data
 We use CIFAR-10 dataset in our paper. The dataset preprocessing code is provided by [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
-For convenience, we include it in './datasets/cifar10.py'. You could run it directly to get processed dataset.
+For convenience, we include it in '[cifar10.py](https://github.com/kxh001/ITdiffusion/blob/main/datasets/cifar10.py)'. You could run it directly to get processed dataset.
 
 ## Fine-tuning
-The following commands are used to run './scripts/fine_tune.py':
+The following commands are used to run 'fine_tune.py':
 1. IDDPM + CIFAR10 + vlb:
 ```
 python ./scripts/fine_tune.py 
@@ -53,12 +53,14 @@ python ./scripts/fine_tune.py
 
 - We use pre-trained DDPM model from Huggingface via '[diffusers](https://github.com/huggingface/diffusers)' library.
 
+- Fined-tuned models could be found [here](https://github.com/kxh001/ITdiffusion/tree/main/checkpoints).
+
 
 ## Results
-Run './script/plot_results.py' to get figures and tables in the paper.
+Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
+To make it clearer, we summerized the 
 Note: 
-- For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the README.md file in './benchmark/improved-diffusion'.
-- The results of n=1000 could be downloaded [here](). 
+- For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
 
 ## BibTeX
 ```
