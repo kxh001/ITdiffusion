@@ -1,11 +1,11 @@
 # Benchmark -- Diffusion Model with Variational Bounds
 
-- We added one more flag 'cont_density' in the original IDDPM codes, which could be found in 
+- We added one more flag ```cont_density``` in the original IDDPM codes, which could be found in 
 [losses.py](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/improved_diffusion/losses.py). 
-- If 'cont_density=True', it calculates the **continuous** NLL for diffusion models using variational bounds (the 2nd column in Table 1),
+If ```cont_density=True```, it calculates the **continuous** NLL for diffusion models using variational bounds (the 2nd column in Table 1),
 otherwise, it will calculate the **discrete** NLL (the 1st column in Table 2). 
 - The way to calculate **continuous** NLL for discrete estimator (the 1st column of Table 1) is assuming uniform density in each bin. Thus, the calculation should be:
-$\text{discrete NLL} - \frac{log(127.5)}{log(2)} $
+$\text{discrete NLL} - \frac{log(127.5)}{log(2)} $. 
 - We don't include the results of benchmark here, you could run command lines in [Run](#3) to get all the results. 
 
 ## Installation
@@ -25,7 +25,6 @@ python ./scripts/image_nll.py
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
 --diffusion_steps 4000 --noise_schedule cosine --use_kl True --iddpm True --cont_density True
 ```
-
 2. DDPM + CIFAR10:
 ```
 python ./scripts/image_nll.py 

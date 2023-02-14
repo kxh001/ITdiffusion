@@ -27,8 +27,8 @@ This would install the 'itdiffusion' python package that scripts depend on.
 Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model, and then use scripts to output results we desire. 
 
 ## Preparing Data
-We use CIFAR-10 dataset in our paper. The dataset preprocessing code is provided by [dataset_generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
-For convenience, we include it in '[cifar10.py](https://github.com/kxh001/ITdiffusion/blob/main/datasets/cifar10.py)'. You could run it directly to get processed dataset.
+We use CIFAR-10 dataset in our paper. The dataset preprocessing code is provided by [dataset generation](https://github.com/openai/improved-diffusion/tree/main/datasets).
+For convenience, we include it in [cifar10.py](https://github.com/kxh001/ITdiffusion/blob/main/datasets/cifar10.py). You could run it directly to get processed dataset.
 
 ## Fine-tuning
 The following commands are used to run 'fine_tune.py':
@@ -51,17 +51,23 @@ python ./scripts/fine_tune.py
 ## Models
 - The pre-trained IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
 
-- We use pre-trained DDPM model from Huggingface via '[diffusers](https://github.com/huggingface/diffusers)' library.
+- We use pre-trained DDPM model from Huggingface via [diffusers](https://github.com/huggingface/diffusers) library.
 
 - Fined-tuned models could be found [here](https://github.com/kxh001/ITdiffusion/tree/main/checkpoints).
 
 
 ## Results
 Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
-To make it clearer, we summerized the 
+To make it clearer, we summarized methods used in our experiments in the following table:
+
+|                       | Continuous NLL ($ \mathbb E[-\log p(\bm x)] $)                                                                                    | Discrete NLL ($ \mathbb E[-\log P(\bm x)] $)         |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
+| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |
+| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |
+
 Note: 
 - For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
-
+- The results
 ## BibTeX
 ```
 @inproceedings{
