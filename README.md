@@ -31,21 +31,38 @@ We use CIFAR-10 dataset in our paper. The dataset preprocessing code is provided
 For convenience, we include it in [cifar10.py](https://github.com/kxh001/ITdiffusion/blob/main/datasets/cifar10.py). You could run it directly to get processed dataset.
 
 ## Fine-tuning
-The following commands are used to run 'fine_tune.py':
+#### The following commands are used to run 'fine_tune.py':
 1. IDDPM + CIFAR10 + vlb:
 ```
 python ./scripts/fine_tune.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --test True --soft False --npoints 100
+--iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --soft False 
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/fine_tune.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --image_size 32
---iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --test True --soft False --npoints 100
+--iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --soft False
+```
+
+#### For evaluation, run 'test.py' directly:
+1. IDDPM + CIFAR10 + vlb:
+```
+python ./scripts/test.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
+--image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
+--iddpm True --wrapped True --test_batch_size 256 --lr 2.5e-5 --soft False --npoints 1000
+```
+2. DDPM + CIFAR10:
+```
+python ./scripts/test.py 
+--data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--image_size 32
+--iddpm False --wrapped True --test_batch_size 256 --lr 1e-4 --soft False --npoints 1000
 ```
 
 ## Models
@@ -59,16 +76,16 @@ python ./scripts/fine_tune.py
 ## Results
 Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 
-[//]: # (To make it clearer, we summarized methods used in our experiments in the following table:)
+To make it clearer, we summarized methods used in our experiments in the following table:
 
-[//]: # ()
-[//]: # (|                       | Continuous NLL &#40;$ \mathbb E[-\log p&#40;\bm x&#41;] $&#41;                                                                                    | Discrete NLL &#40;$ \mathbb E[-\log P&#40;\bm x&#41;] $&#41;         |)
 
-[//]: # (|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|)
+|                       | Continuous NLL ($ \mathbb E[-\log p(\bm x)] $)                                                                                    | Discrete NLL ($ \mathbb E[-\log P(\bm x)] $)         |
 
-[//]: # (| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |)
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
 
-[//]: # (| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |)
+| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |
+
+| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |
 
 
 Note: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
