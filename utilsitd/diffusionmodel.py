@@ -12,6 +12,7 @@ from tqdm import tqdm
 from .utils import logistic_integrate, soft_round
 from . import logger
 
+
 class DiffusionModel(nn.Module):
     """Base class diffusion model for x, with optional conditional info, y.
        *logsnr integration: we do integrals in terms of logsnr instead of snr.
@@ -20,11 +21,12 @@ class DiffusionModel(nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model  # A model that takes in model(x, y (optional), snr, is_simple) and outputs the noise estimate
-        self.logs = {"val loss": [], "train loss": []} # store stuff for plotting, could use tensorboard for larger models
+        self.logs = {"val loss": [],
+                     "train loss": []}  # store stuff for plotting, could use tensorboard for larger models
         self.loc_logsnr, self.scale_logsnr = 0., 2.  # initial location and scale for integration. Reset in data-driven way by dataset_info
-        self.clip = 4 # initial quantile for integration.
+        self.clip = 4  # initial quantile for integration.
         self.device = "cuda" if t.cuda.is_available() else "cpu"
-        self.dtype, self.d, self.shape, self.left = None, None, None, None # dtype, dimensionality, and shape for data, set when we see it in "fit"
+        self.dtype, self.d, self.shape, self.left = None, None, None, None  # dtype, dimensionality, and shape for data, set when we see it in "fit"
 
     def forward(self, batch, logsnr):
         """Batch is either [x,y] or [x,] depending on whether it is a conditional model."""
@@ -52,9 +54,11 @@ class DiffusionModel(nn.Module):
         x_hat = t.sqrt(1 + t.exp(-logsnr.view(self.left))) * z - eps_hat * t.exp(-logsnr.view(self.left) / 2)
         if delta:
             if soft:
-                x_hat = soft_round(x_hat, t.exp(logsnr).view(self.left), xinterval, delta) # soft round to nearest discrete value
+                x_hat = soft_round(x_hat, t.exp(logsnr).view(self.left), xinterval,
+                                   delta)  # soft round to nearest discrete value
             else:
-                x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[0]  # hard round to nearest discrete value
+                x_hat = delta * t.round((x_hat - xinterval[0]) / delta) + xinterval[
+                    0]  # hard round to the nearest discrete value
         if xinterval:
             x_hat = t.clamp(x_hat, xinterval[0], xinterval[1])  # clamp predictions to not fall outside of range
         err = (x - x_hat).flatten(start_dim=1)  # Flatten for, e.g., image data
@@ -82,7 +86,8 @@ class DiffusionModel(nn.Module):
         :param w:  Integration weights
         :return: loss, -log p(x) estimate
         """
-        mmse_gap = mses - self.mmse_g(logsnr)  # The "scale" does not change the integral, but may be more numerically stable.
+        mmse_gap = mses - self.mmse_g(
+            logsnr)  # The "scale" does not change the integral, but may be more numerically stable.
         loss = self.h_g + 0.5 * (w * mmse_gap).mean()
         return loss  # *logsnr integration, see paper
 
@@ -98,7 +103,7 @@ class DiffusionModel(nn.Module):
         if self.model.training:
             print("Warning - estimating test NLL but model is in train mode")
         results = {}  # Return multiple forms of results in a dictionary
-        clip = self.clip 
+        clip = self.clip
         loc, scale = self.loc_scale
         logsnr, w = logistic_integrate(npoints, loc=loc, scale=scale, clip=clip, device=self.device, deterministic=True)
         left_logsnr, right_logsnr = loc - clip * scale, loc + clip * scale
@@ -128,12 +133,14 @@ class DiffusionModel(nn.Module):
                 this_logsnr_broadcast = this_logsnr * t.ones(len(data), device=self.device)
 
                 # Regular MSE, clamps predictions, but does not discretize
-                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval).cpu()
+                this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon',
+                                    xinterval=xinterval).cpu()
                 mses[-1][:, j] = this_mse
 
                 if delta:
                     # MSE for estimator that rounds using x_hat
-                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon', xinterval=xinterval, delta=delta, soft=soft).cpu()
+                    this_mse = self.mse([data, ] + batch[1:], this_logsnr_broadcast, mse_type='epsilon',
+                                        xinterval=xinterval, delta=delta, soft=soft).cpu()
                     mses_round_xhat[-1][:, j] = this_mse
 
                     # Dequantize
@@ -157,32 +164,40 @@ class DiffusionModel(nn.Module):
         results['mses_dequantize'] = mses_dequantize
         results['mmse_g'] = self.mmse_g(logsnr.to(self.device)).to('cpu')
 
-        results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses, 0.))
-        results['nll (nats) - dequantize'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g']  - mses_dequantize, 0.))
+        results['nll (nats)'] = t.mean(self.h_g - 0.5 * w * t.clamp(results['mmse_g'] - mses, 0.))
+        results['nll (nats) - dequantize'] = t.mean(
+            self.h_g - 0.5 * w * t.clamp(results['mmse_g'] - mses_dequantize, 0.))
         results['nll (bpd)'] = results['nll (nats)'] / math.log(2) / self.d
         results['nll (bpd) - dequantize'] = results['nll (nats) - dequantize'] / math.log(2) / self.d
 
         if delta:
             results['nll-discrete-limit (bpd)'] = results['nll (bpd)'] - math.log(delta) / math.log(2.)
-            results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(delta) / math.log(2.)
+            results['nll-discrete-limit (bpd) - dequantize'] = results['nll (bpd) - dequantize'] - math.log(
+                delta) / math.log(2.)
             if xinterval:  # Upper bound on direct estimate of -log P(x) for discrete x
-                left_tail = 0.5 * t.log1p(t.exp(left_logsnr+self.log_eigs)).sum().cpu()
+                left_tail = 0.5 * t.log1p(t.exp(left_logsnr + self.log_eigs)).sum().cpu()
                 j_max = int((xinterval[1] - xinterval[0]) / delta)
-                right_tail = 4 * self.d * sum([math.exp(-(j-0.5)**2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max+1)])
+                right_tail = 4 * self.d * sum(
+                    [math.exp(-(j - 0.5) ** 2 * delta * delta * math.exp(right_logsnr)) for j in range(1, j_max + 1)])
                 mses_min = t.minimum(mses, mses_round_xhat)
                 results['nll-discrete'] = t.mean(0.5 * (w * mses_min) + right_tail + left_tail)
                 results['nll-discrete (bpd)'] = results['nll-discrete'] / math.log(2) / self.d
 
         ## Variance (of the mean) calculation - via CLT, it's the variance of the samples (over epsilon, x, logsnr) / n samples.
         ## n_samples is number of x samples * number of logsnr samples per x
-        inds = (results['mmse_g']-results['mses']) > 0  # we only give nonzero estimates in this region (for continuous estimators)
+        inds = (results['mmse_g'] - results[
+            'mses']) > 0  # we only give nonzero estimates in this region (for continuous estimators)
         n_samples = results['mses-all'].numel()
         wp = w[inds]
-        results['nll (nats) - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
-        results['nll-discrete (nats) - var'] = t.var(0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
-        results['nll (nats) - dequantize - var'] = t.var(0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
+        results['nll (nats) - var'] = t.var(
+            0.5 * wp * (results['mmse_g'][inds] - results['mses-all'][:, inds])) / n_samples
+        results['nll-discrete (nats) - var'] = t.var(
+            0.5 * w * results['mses_round_xhat-all']) / n_samples  # Use entire range with discrete estimator
+        results['nll (nats) - dequantize - var'] = t.var(
+            0.5 * wp * (results['mmse_g'][inds] - results['mses_dequantize-all'][:, inds])) / n_samples
         results['nll (bpd) - std'] = t.sqrt(results['nll (nats) - var']) / math.log(2) / self.d
-        results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(2) / self.d
+        results['nll (bpd) - dequantize - std'] = t.sqrt(results['nll (nats) - dequantize - var']) / math.log(
+            2) / self.d
         results['nll-discrete (bpd) - std'] = t.sqrt(results['nll-discrete (nats) - var']) / math.log(2) / self.d
 
         return results, val_loss
@@ -232,22 +247,20 @@ class DiffusionModel(nn.Module):
             # A heuristic, since we won't get good variance estimate from diagonal - use loc/scale from CIFAR.
             self.loc_logsnr, self.scale_logsnr = 6.261363983154297, 3.0976245403289795
         else:
-            self.scale_logsnr = t.sqrt(1+ 3. / math.pi * self.log_eigs.var()).item()
+            self.scale_logsnr = t.sqrt(1 + 3. / math.pi * self.log_eigs.var()).item()
 
-    def fit(self, dataloader_train, dataloader_test=None, epochs=10, use_optimizer='adam', lr=1e-4, npoints=100, verbose=False):
+    def fit(self, dataloader_train, epochs=10, use_optimizer='adam', lr=1e-4, verbose=False):
         """Given dataset, train the MMSE model for predicting the noise (or score).
            See image_datasets.py for example of torch dataset, that can be used with dataloader
            Shape needs to be compatible with model inputs.
         """
         if use_optimizer == 'adam':
             optimizer = t.optim.Adam(self.model.parameters(), lr=lr)
-        elif use_optimizer == 'adamw':
-            optimizer = t.optim.AdamW(self.model.parameters(), lr=lr)
         else:
             optimizer = t.optim.SGD(self.model.parameters(), lr=lr)
 
         # Return to standard fitting paradigm
-        for i in range(1, epochs+1):  # Main training loop
+        for i in range(1, epochs + 1):  # Main training loop
             print("training ... ")
             train_loss = 0.
             t0 = time.time()
@@ -264,26 +277,13 @@ class DiffusionModel(nn.Module):
                 train_loss += loss.detach().cpu().item() * num_samples
             train_loss /= total_samples
             iter_per_sec = len(dataloader_train) / (time.time() - t0)
-            out_path = os.path.join(logger.get_dir(), f"model_epoch{i}.pt") 
-            t.save(self.model.state_dict(), out_path) # save model
+            out_path = os.path.join(logger.get_dir(), f"model_epoch{i}.pt")
+            t.save(self.model.state_dict(), out_path)  # save model
             self.logs['train loss'].append(train_loss)
 
-            if dataloader_test:  # Process validation statistics once per epoch, if available
-                print("testing ...")
-                self.eval()
-                with t.no_grad():
-                    results, val_loss = self.test_nll(dataloader_test, npoints=npoints, delta=1./127.5, xinterval=(-1, 1), soft=True)
-                    out_path = os.path.join(logger.get_dir(), f"results_epoch{i}.npy") 
-                    np.save(out_path, results) 
-                    self.logs['val loss'].append(val_loss)
-
             if verbose:
-                if dataloader_test:
-                    logger.log('epoch: {:3d}\t train loss: {:0.4f}\t val loss: {:0.4f}\t iter/sec: {:0.2f}'.
-                        format(i, train_loss, val_loss, iter_per_sec))
-                else:
-                    logger.log('epoch: {:3d}\t train loss: {:0.4f}\t iter/sec: {:0.2f}'.
-                        format(i, train_loss, iter_per_sec))
+                logger.log('epoch: {:3d}\t train loss: {:0.4f}\t iter/sec: {:0.2f}'.
+                           format(i, train_loss, iter_per_sec))
 
     @property
     def h_g(self):
