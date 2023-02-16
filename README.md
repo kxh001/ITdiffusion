@@ -21,7 +21,10 @@ Clone this repository and navigate to './ITdiffusion' as working directory in th
 pip install -e .
 ```
 
-This would install the 'itdiffusion' python package that scripts depend on. 
+This would install the 'itdiffusion' python package that scripts depend on.
+
+Note: If you occur the warning that no module named 'mpi4py', please refer [here](https://pypi.org/project/mpi4py/).
+
 
 ## Utilities
 Folder 'utilsitd' includes the utilities from [improved-diffusion](https://github.com/openai/improved-diffusion) and our ITdiffusion model, and then use scripts to output results we desire. 
@@ -35,17 +38,17 @@ For convenience, we include it in [cifar10.py](https://github.com/kxh001/ITdiffu
 1. IDDPM + CIFAR10 + vlb:
 ```
 python ./scripts/fine_tune.py 
---data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--data_train_dir XXX/cifar_train 
 --model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --train_batch_size 32 --test_batch_size 256 --lr 2.5e-5 --epoch 10 --soft False 
+--iddpm True --wrapped True --train_batch_size 32 --lr 2.5e-5 --epoch 10 --soft False 
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/fine_tune.py 
---data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
+--data_train_dir XXX/cifar_train
 --image_size 32
---iddpm False --wrapped True --train_batch_size 64 --test_batch_size 256 --lr 1e-4 --epoch 10 --soft False
+--iddpm False --wrapped True --train_batch_size 64 --lr 1e-4 --epoch 10 --soft False
 ```
 
 #### For evaluation, run 'test.py' directly:
