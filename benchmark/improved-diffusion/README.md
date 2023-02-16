@@ -24,7 +24,7 @@ This would install the 'improved-diffusion' python package that scripts depend o
 python ./scripts/image_nll.py
 --model_path XXX/cifar10_uncond_vlb_50M_500K.pt --data_dir XXX/cifar_test 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---diffusion_steps 4000 --noise_schedule cosine --use_kl True --iddpm True --cont_density True
+--diffusion_steps 4000 --noise_schedule cosine --use_kl uTrue --iddpm Tre --cont_density True
 ```
 2. DDPM + CIFAR10:
 ```

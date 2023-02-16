@@ -56,7 +56,7 @@ python ./scripts/fine_tune.py
 ```
 python ./scripts/test.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
---model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
+--model_path ../checkpoints/iddpm/model_epoch10.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
 --iddpm True --wrapped True --test_batch_size 256 --lr 2.5e-5 --soft False --npoints 1000
 ```
