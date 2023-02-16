@@ -58,12 +58,17 @@ python ./scripts/fine_tune.py
 
 ## Results
 Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
-To make it clearer, we summarized methods used in our experiments in the following table:
 
-|                       | Continuous NLL ($ \mathbb E[-\log p(\bm x)] $)                                                                                    | Discrete NLL ($ \mathbb E[-\log P(\bm x)] $)         |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |
-| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |
+[//]: # (To make it clearer, we summarized methods used in our experiments in the following table:)
+
+[//]: # ()
+[//]: # (|                       | Continuous NLL &#40;$ \mathbb E[-\log p&#40;\bm x&#41;] $&#41;                                                                                    | Discrete NLL &#40;$ \mathbb E[-\log P&#40;\bm x&#41;] $&#41;         |)
+
+[//]: # (|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|)
+
+[//]: # (| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |)
+
+[//]: # (| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |)
 
 
 Note: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
