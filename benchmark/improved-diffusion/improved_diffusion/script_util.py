@@ -20,7 +20,6 @@ def model_and_diffusion_defaults():
         attention_resolutions="16,8",
         dropout=0.0,
         iddpm=True,
-        hugface=False,
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
