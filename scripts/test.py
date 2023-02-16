@@ -21,20 +21,23 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
+
     model.load_state_dict(
         t.load(args.model_path, map_location="cpu")
     )
+
     dev = "cuda" if t.cuda.is_available() else "cpu"
     model.to(t.device(dev))
     logger.log(f"Using {dev} for DiffusionModel")
 
     logger.log("creating data loader...")
-    data_train = load_dataloader(
-        data_dir=args.data_train_dir,
-        batch_size=args.train_batch_size,
+
+    data_test = load_dataloader(
+        data_dir=args.data_test_dir,
+        batch_size=args.test_batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
-        deterministic=False, 
+        deterministic=True,
     )
 
     data_train_cov = load_data(
@@ -54,22 +57,21 @@ def main():
     logger.log(f"loc_logsnr:{diffusion.loc_logsnr}, scale_logsnr:{diffusion.scale_logsnr}")
 
 
-    logger.log("fine tune model...")
-    diffusion.fit(data_train, epochs=args.epoch, lr=args.lr, use_optimizer='adam')
+    logger.log("test model...")
+    results, val_loss = diffusion.test_nll(data_test, npoints=args.npoints, delta=1. / 127.5, xinterval=(-1, 1))
 
     logger.log("save results...")
-    out_path = os.path.join(logger.get_dir(), f"train_loss_all.npy")
-    np.save(out_path, diffusion.logs['train loss'])
+    out_path = os.path.join(logger.get_dir(), f"results_epoch10_{args.npoints}.npy")
+    np.save(out_path, [results, val_loss])
 
 def create_argparser():
     defaults = dict(
         data_train_dir="",
-        data_test_dir="",  
-        train_batch_size=128, 
+        data_test_dir="",
         test_batch_size=256,
         model_path="",
         lr=2.5e-5,
-        epoch=10,
+        npoints=1000,
         iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
         wrapped=True, # 'True' if using models wrapped with logsnr2t function, else 'False'
         diagonal = False, # 'True' if data size is too large to compute covariance matrix from limited data, else 'False'
