@@ -58,7 +58,8 @@ def main():
 
 
     logger.log("test model...")
-    results, val_loss = diffusion.test_nll(data_test, npoints=args.npoints, delta=1. / 127.5, xinterval=(-1, 1))
+    diffusion.eval()
+    results, val_loss = diffusion.test_nll(data_test, npoints=args.npoints, delta=1. / 127.5, xinterval=(-1, 1), soft=args.soft)
 
     logger.log("save results...")
     out_path = os.path.join(logger.get_dir(), f"results_epoch10_{args.npoints}.npy")
