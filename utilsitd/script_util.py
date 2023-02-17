@@ -2,7 +2,7 @@ import argparse
 
 from . import logger
 from .diffusionmodel import DiffusionModel
-from .unet import UNetModel, WrapUNetModel, WrapUNet2DModel
+from .unet import WrapUNetModel, WrapUNet2DModel
 from diffusers import UNet2DModel
 
 
@@ -25,9 +25,7 @@ def model_and_diffusion_defaults():
         class_cond=False,
         use_checkpoint=False,
         use_scale_shift_norm=True,
-        wrapped=False,
         iddpm=True,
-        soft=False,
     )
 
 
@@ -43,9 +41,7 @@ def create_model_and_diffusion(
     dropout,
     use_checkpoint,
     use_scale_shift_norm,
-    wrapped,
     iddpm,
-    soft,
 ):
     model = create_model(
         image_size,
@@ -59,9 +55,7 @@ def create_model_and_diffusion(
         num_heads_upsample=num_heads_upsample,
         use_scale_shift_norm=use_scale_shift_norm,
         dropout=dropout,
-        wrapped=wrapped,
         iddpm=iddpm,
-        soft=soft,
     )
     diffusion = create_information_theoretic_diffusion(
         model=model,
@@ -81,9 +75,7 @@ def create_model(
     num_heads_upsample,
     use_scale_shift_norm,
     dropout,
-    wrapped,
     iddpm,
-    soft,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -98,47 +90,28 @@ def create_model(
     for res in attention_resolutions.split(","):
         attention_ds.append(image_size // int(res))
     if iddpm:
-        if wrapped:
-            logger.log("Use wrapped IDDPM model...")
-            return WrapUNetModel(
-                soft=soft,
-                in_channels=3,
-                model_channels=num_channels,
-                out_channels=(3 if not learn_sigma else 6),
-                num_res_blocks=num_res_blocks,
-                attention_resolutions=tuple(attention_ds),
-                dropout=dropout,
-                channel_mult=channel_mult,
-                num_classes=(NUM_CLASSES if class_cond else None),
-                use_checkpoint=use_checkpoint,
-                num_heads=num_heads,
-                num_heads_upsample=num_heads_upsample,
-                use_scale_shift_norm=use_scale_shift_norm,
-            )
-        else:
-            logger.log("Use original IDDPM model...")
-            return UNetModel(
-                in_channels=3,
-                model_channels=num_channels,
-                out_channels=(3 if not learn_sigma else 6),
-                num_res_blocks=num_res_blocks,
-                attention_resolutions=tuple(attention_ds),
-                dropout=dropout,
-                channel_mult=channel_mult,
-                num_classes=(NUM_CLASSES if class_cond else None),
-                use_checkpoint=use_checkpoint,
-                num_heads=num_heads,
-                num_heads_upsample=num_heads_upsample,
-                use_scale_shift_norm=use_scale_shift_norm,
-            )
+        logger.log("Use wrapped IDDPM model...")
+        return WrapUNetModel(
+            in_channels=3,
+            model_channels=num_channels,
+            out_channels=(3 if not learn_sigma else 6),
+            num_res_blocks=num_res_blocks,
+            attention_resolutions=tuple(attention_ds),
+            dropout=dropout,
+            channel_mult=channel_mult,
+            num_classes=(NUM_CLASSES if class_cond else None),
+            use_checkpoint=use_checkpoint,
+            num_heads=num_heads,
+            num_heads_upsample=num_heads_upsample,
+            use_scale_shift_norm=use_scale_shift_norm,
+        )
     else:
+        logger.log("Use wrapped DDPM model(HuggingFace)...")
         model_id = "google/ddpm-cifar10-32"
-        if wrapped:
-            logger.log("Use wrapped DDPM model(HuggingFace)...")
-            return WrapUNet2DModel(soft=soft).from_pretrained(model_id)
-        else:
-            logger.log("Use original DDPM model(HuggingFace)...")
-            return UNet2DModel.from_pretrained(model_id)
+        modelB = UNet2DModel.from_pretrained(model_id)
+        model = WrapUNet2DModel(**modelB.config)
+        model.load_state_dict(modelB.state_dict())
+        return model
 
 def create_information_theoretic_diffusion(
     model,

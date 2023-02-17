@@ -21,10 +21,10 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-
-    model.load_state_dict(
-        t.load(args.model_path, map_location="cpu")
-    )
+    if args.iddpm:
+        model.load_state_dict(
+            t.load(args.model_path, map_location="cpu")
+        )
 
     dev = "cuda" if t.cuda.is_available() else "cpu"
     model.to(t.device(dev))
@@ -74,9 +74,8 @@ def create_argparser():
         lr=2.5e-5,
         npoints=1000,
         iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
-        wrapped=True, # 'True' if using models wrapped with logsnr2t function, else 'False'
         diagonal = False, # 'True' if data size is too large to compute covariance matrix from limited data, else 'False'
-        soft = False, # 'True' if use soft layer in UNet, else 'False'
+        soft = True, # 'True' if using soft discretization, else 'False'
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

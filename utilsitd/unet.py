@@ -563,10 +563,8 @@ class Soft(nn.Module):
 
 class WrapUNetModel(UNetModel):
     """Wrap UNetModel to accept arguments compatible with Diffusion Model."""
-    def __init__(self, soft, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.soft = soft
-        self.soft_round = Soft()
 
     def forward(self, z, snr):
         x = z[0]
@@ -574,10 +572,6 @@ class WrapUNetModel(UNetModel):
         model_output = super().forward(x, timestep)
         C = model_output.shape[1] // 2
         eps_hat = th.split(model_output, C, dim=1)[0]
-        if self.soft:
-            x_hat = self.soft_round(x, eps_hat, snr)
-            left = (-1,) + (1,) * len(x[0].shape)
-            eps_hat = th.sqrt(1 + snr.view(left)) * x - th.sqrt(snr.view(left)) * x_hat
         return eps_hat
 
     def logsnr2t(self, logsnr, s=0.008, total_steps=1000):
@@ -587,19 +581,13 @@ class WrapUNetModel(UNetModel):
 
 class WrapUNet2DModel(UNet2DModel):
     """Wrap UNet2DModel to accept arguments compatible with Diffusion Model."""
-    def __init__(self, soft, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.soft = soft
-        self.soft_round = Soft()
 
     def forward(self, z, snr):
         x = z[0]
         timestep = self.logsnr2t(th.log(snr))
-        eps_hat = super().forward(x, timestep)["sample"]
-        if self.soft:
-            x_hat = self.soft_round(x, eps_hat, snr)
-            left = (-1,) + (1,) * len(x[0].shape)
-            eps_hat = th.sqrt(1 + snr.view(left)) * x - th.sqrt(snr.view(left)) * x_hat
+        eps_hat = super().forward(x, timestep).sample
         return eps_hat
 
     def logsnr2t(self, logsnr):

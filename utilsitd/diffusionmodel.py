@@ -4,7 +4,6 @@ Code for Diffusion model class
 import os
 import math
 import time
-import numpy as np
 import torch as t
 import torch.nn as nn
 from tqdm import tqdm
@@ -45,7 +44,8 @@ class DiffusionModel(nn.Module):
         Options are:
         mse_type: {"epsilon" or "x"), for error in predicting noise, or predicting data.
         xinterval: Whether predictions should be clamped to some interval.
-        delta: If provided, round to the nearest discrete value
+        delta: If provided, hard round to the nearest discrete value
+        soft: If provided, soft round to the nearest discrete value
         """
         x = batch[0].to(self.device)  # assume iterator gives other things besides x in list (e.g. y)
         z, eps = self.noisy_channel(x, logsnr)
@@ -98,7 +98,8 @@ class DiffusionModel(nn.Module):
         npoints - number of points to use in integration
         delta - if the data is discrete, delta is the gap between discrete values.
         E.g. delta = 1/127.5 for CIFAR data (0, 255) scaled to -1, 1 range
-        range = a tuple of the range of the discrete values, e.g. (-1, 1) for CIFAR10 normalized
+        xinterval - a tuple of the range of the discrete values, e.g. (-1, 1) for CIFAR10 normalized
+        soft -  using soft discretization if True.
         """
         if self.model.training:
             print("Warning - estimating test NLL but model is in train mode")
