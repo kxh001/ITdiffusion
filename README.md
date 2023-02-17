@@ -23,7 +23,7 @@ pip install -e .
 
 This would install the 'itdiffusion' python package that scripts depend on.
 
-Note: If you occur the warning that no module named 'mpi4py', please refer [here](https://pypi.org/project/mpi4py/).
+(<span style="color:red">**Note**</span>: If you meet troubles when installing the 'mpi4py' library, please refer [here](https://pypi.org/project/mpi4py/).)
 
 
 ## Utilities
@@ -41,14 +41,14 @@ python ./scripts/fine_tune.py
 --data_train_dir XXX/cifar_train 
 --model_path XXX/iddpm/cifar10_uncond_vlb_50M_500K.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --train_batch_size 32 --lr 2.5e-5 --epoch 10 --soft False 
+--iddpm True --train_batch_size 32 --lr 2.5e-5 --epoch 10
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/fine_tune.py 
 --data_train_dir XXX/cifar_train
 --image_size 32
---iddpm False --wrapped True --train_batch_size 64 --lr 1e-4 --epoch 10 --soft False
+--iddpm False --train_batch_size 64 --lr 1e-4 --epoch 10
 ```
 
 #### For evaluation, run 'test.py' directly:
@@ -58,14 +58,14 @@ python ./scripts/test.py
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --model_path ../checkpoints/iddpm/model_epoch10.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --wrapped True --test_batch_size 256 --lr 2.5e-5 --soft False --npoints 1000
+--iddpm True --test_batch_size 256 --lr 2.5e-5 --npoints 1000 --soft True
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/test.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --image_size 32
---iddpm False --wrapped True --test_batch_size 256 --lr 1e-4 --soft False --npoints 1000
+--iddpm False --test_batch_size 256 --lr 1e-4 --npoints 1000 --soft True
 ```
 
 ## Models
@@ -94,8 +94,8 @@ Run ```python ./script/plot_results.py``` to get figures and tables in the paper
 [//]: # ()
 [//]: # (| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |)
 
+(<span style="color:red">**Note**</span>: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
 
-Note: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion/README.md).
 
 ## BibTeX
 ```
