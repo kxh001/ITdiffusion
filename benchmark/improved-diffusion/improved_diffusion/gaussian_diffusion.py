@@ -260,7 +260,7 @@ class GaussianDiffusion:
         if iddpm:
             model_output = model(x, self._scale_timesteps(t), **model_kwargs)
         else:
-            model_output = model(x, self._scale_timesteps(t))["sample"] # if use hugging face interface
+            model_output = model(x, self._scale_timesteps(t)).sample # if use hugging face interface
 
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
