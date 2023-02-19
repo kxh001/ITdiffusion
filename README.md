@@ -82,47 +82,50 @@ python ./scripts/test.py
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 
 - To make it clearer, we summarized **discrete** $\rightleftharpoons$ **continuous** methods used in our experiments in the following tables:
-<table>
-<thead>
-  <tr>
-    <th>Table 1 in the paper</th>
-    <th>Continuous NLL</th>
-    <th>Column #</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td rowspan="2">Discrete Estimator (benchmarks)</td>
-    <td>assume uniform density in each bin</td>
-    <td>1st</td>
-  </tr>
-  <tr>
-    <td>interpret the last denosing step as <br>providing a Gaussian distribution over $\mathbf{x}$</td>
-    <td>2nd</td>
-  </tr>
-</tbody>
-</table>
 
-<table>
-<thead>
-  <tr>
-    <th>Table 2 in the paper</th>
-    <th>Discrete NLL</th>
-    <th>Column #</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td rowspan="2">Continuous Estimator (ours)</td>
-    <td>soft discretization</td>
-    <td>2nd</td>
-  </tr>
-  <tr>
-    <td>uniform dequantization</td>
-    <td>3rd</td>
-  </tr>
-</tbody>
-</table>
+    - For Table 1 in the paper, we would like to use discrete estimator with variational bounds to calculate continuous NLL ($\mathbb{E[-\log p(x)]}$)
+        <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Continuous NLL</th>
+            <th>Column #</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="2">Discrete Estimator (benchmarks)</td>
+            <td>assume uniform density in each bin</td>
+            <td>1st</td>
+          </tr>
+          <tr>
+            <td>interpret the last denosing step as <br>providing a Gaussian distribution over $x$</td>
+            <td>2nd</td>
+          </tr>
+        </tbody>
+        </table>
+
+    - For Table 2 in the paper, we want to make our continuous estimator with information-theoretic bounds to calculate discrete NLL ($\mathbb{E[-\log P(x)]}$)
+        <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Discrete NLL</th>
+            <th>Column #</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="2">Continuous Estimator (ours)</td>
+            <td>soft discretization</td>
+            <td>2nd</td>
+          </tr>
+          <tr>
+            <td>uniform dequantization</td>
+            <td>3rd</td>
+          </tr>
+        </tbody>
+        </table>
 
 (<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
 
