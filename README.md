@@ -2,8 +2,6 @@
 
 Code for the paper [Information-Theoretic Diffusion](https://openreview.net/forum?id=UvmDCdSPDOW), published at ICLR 2023.
 
-For better understanding, a [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
-
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
 
 $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{const} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
@@ -13,6 +11,8 @@ where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimatio
 ![Discrete Results](/results/figs/discrete_fig_table.png)
  
 <!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
+
+For better understanding, a [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
 
 
 # Usage
@@ -79,24 +79,77 @@ python ./scripts/test.py
 
 
 ## Results
-Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
+- Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 
-[//]: # (To make it clearer, we summarized methods used in our experiments in the following table:)
+- To make it clearer, we summarized **discrete** $\rightleftharpoons$ **continuous** methods used in our experiments in the following tables:
+<style type="text/css">
+.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
+.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
+  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
+  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-lboi{border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-9wq8{border-color:inherit;text-align:center;vertical-align:middle}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+.tg .tg-n6w4{background-color:#FDF6E3;border-color:inherit;color:#002B36;text-align:left;vertical-align:middle}
+</style>
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-lboi"></th>
+    <th class="tg-c3ow">Continuous NLL</th>
+    <th class="tg-0pky">Column # in Table 1</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-9wq8" rowspan="2">Discrete Estimator <br>(benchmarks)</td>
+    <td class="tg-0pky">assume uniform density in each bin</td>
+    <td class="tg-c3ow">1st</td>
+  </tr>
+  <tr>
+    <td class="tg-n6w4"><span style="color:#002B36;background-color:#FDF6E3">interpret the last denosing step as </span><br><span style="color:#002B36;background-color:#FDF6E3">providing a Gaussian distribution over $\bm x$</span></td>
+    <td class="tg-9wq8">2nd</td>
+  </tr>
+</tbody>
+</table>
 
-[//]: # ()
-[//]: # ()
-[//]: # (|                       | Continuous NLL &#40;$ \mathbb E[-\log p&#40;\bm x&#41;] $&#41;                                                                                    | Discrete NLL &#40;$ \mathbb E[-\log P&#40;\bm x&#41;] $&#41;         |)
+<style type="text/css">
+.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
+.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
+  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
+  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-lboi{border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-9wq8{border-color:inherit;text-align:center;vertical-align:middle}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+</style>
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-lboi"></th>
+    <th class="tg-c3ow">Discrete NLL</th>
+    <th class="tg-0pky">Column # in Table 2</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-9wq8" rowspan="2">Continuous Estimator <br>(ours)</td>
+    <td class="tg-0pky">soft discretization</td>
+    <td class="tg-c3ow">2nd</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">uniform dequantization</td>
+    <td class="tg-c3ow">3rd</td>
+  </tr>
+</tbody>
+</table>
 
-[//]: # ()
-[//]: # (|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|)
 
-[//]: # ()
-[//]: # (| Discrete Estimator    | - assume uniform density in each bin <br/> - interpret the last denosing step as providing a Gaussian distribution over $ \bm x $ | -                                                    |)
 
-[//]: # ()
-[//]: # (| Continuous Estimator  | -                                                                                                                                 | - uniform dequantization <br/> - soft discretization |)
-
-(<span style="color:red">**Note**</span>: For benchmark results (1st & 2bd column in Table 1 and 1st column in Table 2), please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
+(<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
 
 
 ## BibTeX
@@ -113,3 +166,5 @@ url={https://openreview.net/forum?id=UvmDCdSPDOW} }
 ## References
 - Alex Nichol's [implement of IDDPM](https://github.com/openai/improved-diffusion).
 - HuggingFace's [diffusers](https://github.com/huggingface/diffusers) library.
+- See our [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) for better understanding.
+
