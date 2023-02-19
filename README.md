@@ -83,7 +83,7 @@ python ./scripts/test.py
 
 - To make it clearer, we summarized **discrete** $\rightleftharpoons$ **continuous** methods used in our experiments in the following tables:
 
-    - For Table 1 in the paper, we would like to use discrete estimator with variational bounds to calculate continuous NLL ($\mathbb{E[-\log p(x)]}$)
+    - For Table 1 in the paper, we would like to use discrete estimator with variational bounds to calculate continuous NLL ($\mathbb{E}[-\log p(x)]$)
         <table>
         <thead>
           <tr>
@@ -105,7 +105,7 @@ python ./scripts/test.py
         </tbody>
         </table>
 
-    - For Table 2 in the paper, we want to make our continuous estimator with information-theoretic bounds to calculate discrete NLL ($\mathbb{E[-\log P(x)]}$)
+    - For Table 2 in the paper, we want to make our continuous estimator with information-theoretic bounds to calculate discrete NLL ($\mathbb{E}[-\log P(x)]$)
         <table>
         <thead>
           <tr>
