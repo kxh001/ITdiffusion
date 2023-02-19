@@ -82,72 +82,47 @@ python ./scripts/test.py
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 
 - To make it clearer, we summarized **discrete** $\rightleftharpoons$ **continuous** methods used in our experiments in the following tables:
-<style type="text/css">
-.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
-.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
-  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
-  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg .tg-lboi{border-color:inherit;text-align:left;vertical-align:middle}
-.tg .tg-9wq8{border-color:inherit;text-align:center;vertical-align:middle}
-.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
-.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
-.tg .tg-n6w4{background-color:#FDF6E3;border-color:inherit;color:#002B36;text-align:left;vertical-align:middle}
-</style>
-<table class="tg">
+<table>
 <thead>
   <tr>
-    <th class="tg-lboi"></th>
-    <th class="tg-c3ow">Continuous NLL</th>
-    <th class="tg-0pky">Column # in Table 1</th>
+    <th>Table 1 in the paper</th>
+    <th>Continuous NLL</th>
+    <th>Column #</th>
   </tr>
 </thead>
 <tbody>
   <tr>
-    <td class="tg-9wq8" rowspan="2">Discrete Estimator <br>(benchmarks)</td>
-    <td class="tg-0pky">assume uniform density in each bin</td>
-    <td class="tg-c3ow">1st</td>
+    <td rowspan="2">Discrete Estimator (benchmarks)</td>
+    <td>assume uniform density in each bin</td>
+    <td>1st</td>
   </tr>
   <tr>
-    <td class="tg-n6w4"><span style="color:#002B36;background-color:#FDF6E3">interpret the last denosing step as </span><br><span style="color:#002B36;background-color:#FDF6E3">providing a Gaussian distribution over $\bm x$</span></td>
-    <td class="tg-9wq8">2nd</td>
+    <td>interpret the last denosing step as <br>providing a Gaussian distribution over $\mathbf{x}$</td>
+    <td>2nd</td>
   </tr>
 </tbody>
 </table>
 
-<style type="text/css">
-.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
-.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
-  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
-  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg .tg-lboi{border-color:inherit;text-align:left;vertical-align:middle}
-.tg .tg-9wq8{border-color:inherit;text-align:center;vertical-align:middle}
-.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
-.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
-</style>
-<table class="tg">
+<table>
 <thead>
   <tr>
-    <th class="tg-lboi"></th>
-    <th class="tg-c3ow">Discrete NLL</th>
-    <th class="tg-0pky">Column # in Table 2</th>
+    <th>Table 2 in the paper</th>
+    <th>Discrete NLL</th>
+    <th>Column #</th>
   </tr>
 </thead>
 <tbody>
   <tr>
-    <td class="tg-9wq8" rowspan="2">Continuous Estimator <br>(ours)</td>
-    <td class="tg-0pky">soft discretization</td>
-    <td class="tg-c3ow">2nd</td>
+    <td rowspan="2">Continuous Estimator (ours)</td>
+    <td>soft discretization</td>
+    <td>2nd</td>
   </tr>
   <tr>
-    <td class="tg-0pky">uniform dequantization</td>
-    <td class="tg-c3ow">3rd</td>
+    <td>uniform dequantization</td>
+    <td>3rd</td>
   </tr>
 </tbody>
 </table>
-
-
 
 (<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
 
