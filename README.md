@@ -138,7 +138,7 @@ title={Information-Theoretic Diffusion},
 author={Xianghao Kong and Rob Brekelmans and Greg {Ver Steeg}},
 booktitle={International Conference on Learning Representations},
 year={2023},
-url={https://openreview.net/forum?id=UvmDCdSPDOW} }
+url={https://arxiv.org/abs/2302.03792} }
 ```
 
 ## References
