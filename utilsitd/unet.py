@@ -599,5 +599,5 @@ class WrapUNet2DModel(UNet2DModel):
         betas = np.linspace(beta_start, beta_end, num_diffusion_steps, dtype=np.float64)
         alphas = 1.0 - betas
         alphabarGT = th.tensor(np.cumprod(alphas, axis=0), device=alphas_cumprod.device)
-        timestep = th.argmin(abs(alphabarGT-alphas_cumprod[0])) * scale # only use one alphas_cumprod in the batch
-        return timestep * th.ones(alphas_cumprod.shape[0], device=alphas_cumprod.device)  # reconvert to batch
+        timestep = th.argmin(abs(alphabarGT-alphas_cumprod.unsqueeze(1)), dim=1) * scale
+        return timestep
