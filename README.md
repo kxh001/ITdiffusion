@@ -89,11 +89,9 @@ python ./scripts/test.py
 ```
 
 ## Models
-- The pre-trained IDDPM model could be downloaded [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
+- We use pre-trained DDPM model from [Huggingface](https://github.com/huggingface/diffusers) and the pre-trained IDDPM model from [here](https://openaipublic.blob.core.windows.net/diffusion/march-2021/cifar10_uncond_vlb_50M_500K.pt).
 
-- We use pre-trained DDPM model from Huggingface via [diffusers](https://github.com/huggingface/diffusers) library.
-
-- Fined-tuned models could be found [here](https://github.com/kxh001/ITdiffusion/tree/main/checkpoints).
+- Fined-tuned models could be found [checkpoints](https://github.com/kxh001/ITdiffusion/tree/main/checkpoints).
 
 
 ## Results
