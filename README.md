@@ -15,6 +15,16 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
     <img width="49%" src="./assets/PEOD.png">
 </p>
 
+## Diffusion Math Comparison
+<center>
+
+|          | Variational Bound  <br/> $-\log p(x) \quad {\leq} \underbrace{L_0}_{\substack{\text{discrete}\\ \text{reconstruction}}} + \underbrace{L_{1:T-1}}_{\text{MSE terms}} + \underbrace{L_T}_{\text{prior}}$ | Information-Theoretic Bound (ours) <br/> -\log p(x) = constant + \frac{1}{2} \int_0^\infty \mmse(x, \gamma) d\gamma |
+|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------:|
+|  Exact?  |                                                                                       No, it's an approximation                                                                                        |                                         **YES**, it's an analytic solution                                          |
+| Simple？ |                                                                                        No, it has non-MSE terms                                                                                        |                                          **YES**, it has only one integral                                          |
+
+</center>
+
 # Usage
 ## Installation
 Clone this repository and navigate to './ITdiffusion' as working directory in the Linux terminal or Anaconda Powershell Prompt, then run the command:
@@ -80,7 +90,8 @@ python ./scripts/test.py
 
 ## Results
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
-- We show a subset results below, and please refer to paper for more detailed results.
+- We show a result subset below, and please refer to the [paper](https://arxiv.org/abs/2302.03792) for more detailed results. (<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion). )
+
 
 <div align="center">
 
@@ -95,10 +106,6 @@ python ./scripts/test.py
 <p  align="center", width="100%">
     <img width="49%" src="./assets/cont_density.png">
 </p>
-
-
-(<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion). )
-
 
 ## BibTeX
 ```
