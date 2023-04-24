@@ -1,6 +1,7 @@
 # Information-Theoretic Diffusion (ITD)
 
-Code for the paper [Information-Theoretic Diffusion](https://arxiv.org/abs/2302.03792), published at ICLR 2023.
+- Code for the paper [Information-Theoretic Diffusion](https://arxiv.org/abs/2302.03792), published at ICLR 2023. 
+- A [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
 
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
 
@@ -12,9 +13,6 @@ where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimatio
  
 <!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
 
-For better understanding, a [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
-
-
 # Usage
 ## Installation
 Clone this repository and navigate to './ITdiffusion' as working directory in the Linux terminal or Anaconda Powershell Prompt, then run the command:
@@ -25,7 +23,7 @@ pip install -e .
 
 This would install the 'itdiffusion' python package that scripts depend on.
 
-(<span style="color:red">**Note**</span>: If you meet troubles when installing the 'mpi4py' library, please refer [here](https://pypi.org/project/mpi4py/).)
+(<span style="color:red">**Note**</span>: If you meet troubles when installing the 'mpi4py' library, please refer [here](https://pypi.org/project/mpi4py/). Run the above command **again** after fixing the problem.)
 
 
 ## Utilities
@@ -60,14 +58,14 @@ python ./scripts/test.py
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --model_path ../checkpoints/iddpm/model_epoch10.pt 
 --image_size 32 --num_channels 128 --num_res_blocks 3 --learn_sigma True --dropout 0.3 
---iddpm True --test_batch_size 256 --lr 2.5e-5 --npoints 1000 --soft True
+--iddpm True --test_batch_size 256 --npoints 1000 --soft True
 ```
 2. DDPM + CIFAR10:
 ```
 python ./scripts/test.py 
 --data_train_dir XXX/cifar_train --data_test_dir XXX/cifar_test
 --image_size 32
---iddpm False --test_batch_size 256 --lr 1e-4 --npoints 1000 --soft True
+--iddpm False --test_batch_size 256 --npoints 1000 --soft True
 ```
 
 ## Models
