@@ -11,8 +11,8 @@ We introduce a new mathematical foundation for diffusion models inspired by clas
 $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{const} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
 
 <p align="center", width="100%">
-    <img width="49%" src="./assets/I-MMSE.png">
-    <img width="49%" src="./assets/PEOD.png">
+    <img width="49%" src="./assets/I-MMSE.svg">
+    <img width="49%" src="./assets/PEOD.svg">
 </p>
 
 ## Diffusion Math Comparison
@@ -101,6 +101,8 @@ python ./scripts/test.py
 
 <div align="center">
 
+Table: $$\mathbb E \left[ -\log p(x) \right]$$ (bits/dimension)
+
 |     Model    | Training Objective | Variational Bound  |    IT Bound (ours)    |
 |:------------:|:------------------:|:------------------:|:---------------------:|
 |     IDDPM    |     Variational    |        -4.05       |       **-4.09**       |
@@ -110,7 +112,7 @@ python ./scripts/test.py
 
 
 <p  align="center", width="100%">
-    <img width="49%" src="./assets/cont_density.png">
+    <img width="77%" src="./assets/cont_density.png">
 </p>
 
 ## BibTeX
