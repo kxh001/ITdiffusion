@@ -98,16 +98,17 @@ python ./scripts/test.py
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 - We show a result subset below, and please refer to the [paper](https://arxiv.org/abs/2302.03792) for more detailed results. (<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion). )
 
-<center>
+
+<p align="center">
 Table: $$\mathbb E \left[ -\log p(x) \right]$$ (bits/dimension)
-</center>
+</p>
 
 <div align="center">
 
-|     Model    | Training Objective | Variational Bound   |    IT Bound (ours)    |
-|:------------:|:------------------:|:-------------------:|:---------------------:|
-|     IDDPM    |     Variational    |        -4.05        |       **-4.09**       |
-| IDDPM (tune) |   Info-Theoretic   |        -3.85        |       **-4.28**       |
+|     Model    | Training Objective | Variational Bound |    IT Bound (ours)    |
+|:------------:|:------------------:|:-----------------:|:---------------------:|
+|     IDDPM    |     Variational    |       -4.05       |       **-4.09**       |
+| IDDPM (tune) |   Info-Theoretic   |       -3.85       |       **-4.28**       |
 
 </div>
 
