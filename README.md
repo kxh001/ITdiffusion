@@ -100,9 +100,8 @@ python ./scripts/test.py
 
 
 <p align="center">
-Table: $$\mathbb E \left[ -\log p(x) \right]$$ (bits/dimension)
+$$\text{Table:} \mathbb E \left[ -\log p(x) \right] \text{(bits/dimension)}$$
 </p>
-
 <div align="center">
 
 |     Model    | Training Objective | Variational Bound |    IT Bound (ours)    |
