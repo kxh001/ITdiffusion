@@ -16,12 +16,15 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 </p>
 
 ## Diffusion Math Comparison
+- Variational Bound: $-\log p(x) \quad {\leq} \underbrace{L_0}_{\substack{\text{discrete}\\ \text{reconstruction}}} + \underbrace{L_{1:T-1}}_{\text{MSE terms}} + \underbrace{L_T}_{\text{prior}}$
+- Information-Theoretic Bound (ours): <br/> $-\log p(x) = constant + \frac{1}{2} \int_0^\infty \mmse(x, \gamma) d\gamma$
+
 <center>
 
-|          | Variational Bound  <br/> $-\log p(x) \quad {\leq} \underbrace{L_0}_{\substack{\text{discrete}\\ \text{reconstruction}}} + \underbrace{L_{1:T-1}}_{\text{MSE terms}} + \underbrace{L_T}_{\text{prior}}$ | Information-Theoretic Bound (ours) <br/> -\log p(x) = constant + \frac{1}{2} \int_0^\infty \mmse(x, \gamma) d\gamma |
-|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------:|
-|  Exact?  |                                                                                       No, it's an approximation                                                                                        |                                         **YES**, it's an analytic solution                                          |
-| Simple？ |                                                                                        No, it has non-MSE terms                                                                                        |                                          **YES**, it has only one integral                                          |
+|          |     Variational Bound      | Information-Theoretic Bound (ours) |
+|:--------:|:--------------------------:|:----------------------------------:|
+|  Exact?  | No, it's an approximation  | **YES**, it's an analytic solution |
+| Simple？ |  No, it has non-MSE terms  |  **YES**, it has only one integral |
 
 </center>
 
