@@ -8,7 +8,7 @@
 ## Main Contribution
 We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields an **_exact_** unified objective for modeling either **continuous** or **discrete** data and provides justification for ensembling of diffusion models.
 
-$$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{const} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
+$$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{constant} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
 
 <p align="center", width="100%">
     <img width="49%" src="./assets/I-MMSE.svg">
@@ -100,7 +100,7 @@ python ./scripts/test.py
 
 
 <p align="center">
-$$\text{Table:} \mathbb E \left[ -\log p(x) \right] \text{(bits/dimension)}$$
+$$\text{Table: } \mathbb E \left[ -\log p(x) \right] \text{ (bits/dimension)}$$
 </p>
 <div align="center">
 
