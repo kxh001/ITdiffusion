@@ -83,52 +83,36 @@ python ./scripts/test.py
 - We show a subset results below, and please refer to paper for more detailed results.
 
 
-<style type="text/css">
-.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
-.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
-  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:4px 8px;word-break:normal;}
-.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
-  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:4px 8px;word-break:normal;}
-.tg .tg-x6g0{background-color:#eee8d5;border-color:#000000;text-align:left;vertical-align:middle}
-.tg .tg-18eh{border-color:#000000;font-weight:bold;text-align:center;vertical-align:middle}
-.tg .tg-wybg{background-color:#eee8d5;border-color:#000000;color:#000000;text-align:left;vertical-align:middle}
-.tg .tg-7ca6{background-color:#eee8d5;border-color:#000000;text-align:center;vertical-align:middle}
-.tg .tg-xwyw{border-color:#000000;text-align:center;vertical-align:middle}
-.tg .tg-w24n{background-color:#eee8d5;border-color:#000000;font-weight:bold;text-align:center;text-decoration:underline;
-  vertical-align:middle}
-</style>
-<table class="tg">
-    <thead>
-      <tr>
-        <th class="tg-xwyw" rowspan="2">Model</th>
-        <th class="tg-xwyw" rowspan="2">Training Objective</th>
-        <th class="tg-xwyw" colspan="2">Test-time estimate</th>
-      </tr>
-      <tr>
-        <th class="tg-wybg">Variational Bound</th>
-        <th class="tg-wybg">IT Bound (ours)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="tg-xwyw">IDDPM</td>
-        <td class="tg-xwyw">Variational</td>
-        <td class="tg-xwyw">-4.05</td>
-        <td class="tg-18eh">-4.09</td>
-      </tr>
-      <tr>
-        <td class="tg-x6g0">IDDPM (tune)</td>
-        <td class="tg-7ca6">Info-Theoretic</td>
-        <td class="tg-7ca6">-3.85</td>
-        <td class="tg-w24n">-4.28</td>
-      </tr>
-    </tbody>
+<table>
+<thead>
+  <tr>
+    <th rowspan="2">Model</th>
+    <th rowspan="2">Training Objective</th>
+    <th colspan="2">Test-time estimate</th>
+  </tr>
+  <tr>
+    <th>Variational Bound</th>
+    <th>IT Bound (ours)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>IDDPM</td>
+    <td>Variational</td>
+    <td>-4.05</td>
+    <th>-4.09</th>
+  </tr>
+  <tr>
+    <td>IDDPM (tune)</td>
+    <td>Info-Theoretic</td>
+    <td>-3.85</td>
+    <th>-4.28</th>
+  </tr>
+</tbody>
 </table>
 
-
-<p  width="100%">
+<p  align="center", width="60%">
     <img width="49%" src="./assets/cont_density.png">
-    <img width="49%" src="./assets/cont_density_iddpm.png">
 </p>
 
 
