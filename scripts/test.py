@@ -71,7 +71,6 @@ def create_argparser():
         data_test_dir="",
         test_batch_size=256,
         model_path="",
-        lr=2.5e-5,
         npoints=1000,
         iddpm=True, # 'Ture' if using iddpm, 'False' if using ddpm
         diagonal = False, # 'True' if data size is too large to compute covariance matrix from limited data, else 'False'
