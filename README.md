@@ -82,36 +82,17 @@ python ./scripts/test.py
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
 - We show a subset results below, and please refer to paper for more detailed results.
 
+<div align="center">
 
-<table>
-<thead>
-  <tr>
-    <th rowspan="2">Model</th>
-    <th rowspan="2">Training Objective</th>
-    <th colspan="2">Test-time estimate</th>
-  </tr>
-  <tr>
-    <th>Variational Bound</th>
-    <th>IT Bound (ours)</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td>IDDPM</td>
-    <td>Variational</td>
-    <td>-4.05</td>
-    <th>-4.09</th>
-  </tr>
-  <tr>
-    <td>IDDPM (tune)</td>
-    <td>Info-Theoretic</td>
-    <td>-3.85</td>
-    <th>-4.28</th>
-  </tr>
-</tbody>
-</table>
+|     Model    | Training Objective | Variational Bound  |    IT Bound (ours)    |
+|:------------:|:------------------:|:------------------:|:---------------------:|
+|     IDDPM    |     Variational    |        -4.05       |       **-4.09**       |
+| IDDPM (tune) |   Info-Theoretic   |        -3.85       |       **-4.28**       |
 
-<p  align="center", width="60%">
+</div>
+
+
+<p  align="center", width="100%">
     <img width="49%" src="./assets/cont_density.png">
 </p>
 
