@@ -26,10 +26,10 @@ $$-\log p(x) = constant + \frac{1}{2} \int_0^\infty \mmse(x, \gamma) d\gamma$$
 
 <center>
 
-|          |     Variational Bound      | Information-Theoretic Bound (ours) |
-|:--------:|:--------------------------:|:----------------------------------:|
-|  Exact?  | No, it's an approximation  | **YES**, it's an analytic solution |
-| Simple？ |  No, it has non-MSE terms  |  **YES**, it has only one integral |
+|         |     Variational Bound      | Information-Theoretic Bound (ours) |
+|:-------:|:--------------------------:|:----------------------------------:|
+| Exact?  | No, it's an approximation  | **YES**, it's an analytic solution |
+| Simple? |  No, it has non-MSE terms  |  **YES**, it has only one integral |
 
 </center>
 
