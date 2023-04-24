@@ -65,7 +65,6 @@ def main():
 def create_argparser():
     defaults = dict(
         data_train_dir="",
-        data_test_dir="",  
         train_batch_size=128,
         model_path="",
         lr=2.5e-5,
