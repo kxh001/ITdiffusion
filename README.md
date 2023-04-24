@@ -1,17 +1,19 @@
 # Information-Theoretic Diffusion (ITD)
 
 - Code for the paper [Information-Theoretic Diffusion](https://arxiv.org/abs/2302.03792), published at ICLR 2023. 
-- A [simplified demonstration](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
+- A [**simplified demonstration**](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
 
-We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields a unified objective for modeling either continuous or discrete data and provides justification for ensembling of diffusion models.
+![dino](./assets/dino.png)
+
+## Main Contribution
+We introduce a new mathematical foundation for diffusion models inspired by classic results in information theory, which yields an **_exact_** unified objective for modeling either **continuous** or **discrete** data and provides justification for ensembling of diffusion models.
 
 $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + \text{const} \qquad \text{where} \quad \text{mmse} = \min_{\hat{x}} E_{p(z_{\gamma}|x)}\big[ \| x - \hat{x}(z_{\gamma}, \gamma) \|^2 \big] $$
 
-where $\gamma$ is the signal-to-noise ratio.   For discrete likelihood estimation, we visualize the curve of denoising errors by log SNR (left) and show that existing models can be improved using fine-tuning inspired by the ITD loss or by ensembling different models at different SNRs (right).
-
-![Discrete Results](/results/figs/discrete_fig_table.png)
- 
-<!-- Initial commit for improved and generalized applications of diffusion models based on an information-theoretic formulation.  -->
+<p align="center", width="100%">
+    <img width="49%" src="./assets/I-MMSE.png">
+    <img width="49%" src="./assets/PEOD.png">
+</p>
 
 # Usage
 ## Installation
@@ -78,54 +80,59 @@ python ./scripts/test.py
 
 ## Results
 - Run ```python ./script/plot_results.py``` to get figures and tables in the paper.
+- We show a subset results below, and please refer to paper for more detailed results.
 
-- To make it clearer, we summarized **discrete** $\rightleftharpoons$ **continuous** methods used in our experiments in the following tables:
 
-    - For Table 1 in the paper, we would like to use discrete estimator with variational bounds to calculate continuous NLL ($\mathbb{E}[-\log p(x)]$)
-        <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th>Continuous NLL</th>
-            <th>Column #</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td rowspan="2">Discrete Estimator (benchmarks)</td>
-            <td>assume uniform density in each bin</td>
-            <td>1st</td>
-          </tr>
-          <tr>
-            <td>interpret the last denosing step as <br>providing a Gaussian distribution over $x$</td>
-            <td>2nd</td>
-          </tr>
-        </tbody>
-        </table>
+<style type="text/css">
+.tg  {border-collapse:collapse;border-color:#93a1a1;border-spacing:0;}
+.tg td{background-color:#fdf6e3;border-color:#93a1a1;border-style:solid;border-width:0px;color:#002b36;
+  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:4px 8px;word-break:normal;}
+.tg th{background-color:#657b83;border-color:#93a1a1;border-style:solid;border-width:0px;color:#fdf6e3;
+  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:4px 8px;word-break:normal;}
+.tg .tg-x6g0{background-color:#eee8d5;border-color:#000000;text-align:left;vertical-align:middle}
+.tg .tg-18eh{border-color:#000000;font-weight:bold;text-align:center;vertical-align:middle}
+.tg .tg-wybg{background-color:#eee8d5;border-color:#000000;color:#000000;text-align:left;vertical-align:middle}
+.tg .tg-7ca6{background-color:#eee8d5;border-color:#000000;text-align:center;vertical-align:middle}
+.tg .tg-xwyw{border-color:#000000;text-align:center;vertical-align:middle}
+.tg .tg-w24n{background-color:#eee8d5;border-color:#000000;font-weight:bold;text-align:center;text-decoration:underline;
+  vertical-align:middle}
+</style>
+<table class="tg">
+    <thead>
+      <tr>
+        <th class="tg-xwyw" rowspan="2">Model</th>
+        <th class="tg-xwyw" rowspan="2">Training Objective</th>
+        <th class="tg-xwyw" colspan="2">Test-time estimate</th>
+      </tr>
+      <tr>
+        <th class="tg-wybg">Variational Bound</th>
+        <th class="tg-wybg">IT Bound (ours)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tg-xwyw">IDDPM</td>
+        <td class="tg-xwyw">Variational</td>
+        <td class="tg-xwyw">-4.05</td>
+        <td class="tg-18eh">-4.09</td>
+      </tr>
+      <tr>
+        <td class="tg-x6g0">IDDPM (tune)</td>
+        <td class="tg-7ca6">Info-Theoretic</td>
+        <td class="tg-7ca6">-3.85</td>
+        <td class="tg-w24n">-4.28</td>
+      </tr>
+    </tbody>
+</table>
 
-    - For Table 2 in the paper, we want to make our continuous estimator with information-theoretic bounds to calculate discrete NLL ($\mathbb{E}[-\log P(x)]$)
-        <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th>Discrete NLL</th>
-            <th>Column #</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td rowspan="2">Continuous Estimator (ours)</td>
-            <td>soft discretization</td>
-            <td>2nd</td>
-          </tr>
-          <tr>
-            <td>uniform dequantization</td>
-            <td>3rd</td>
-          </tr>
-        </tbody>
-        </table>
 
-(<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion).)
+<p  width="100%">
+    <img width="49%" src="./assets/cont_density.png">
+    <img width="49%" src="./assets/cont_density_iddpm.png">
+</p>
+
+
+(<span style="color:red">**Note**</span>: For benchmark results with variational bounds, please read the [README.md](https://github.com/kxh001/ITdiffusion/blob/main/benchmark/improved-diffusion). )
 
 
 ## BibTeX
