@@ -18,9 +18,9 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 ## Diffusion Math Comparison
 - Variational Bound: \
 $$-\log p(x) {\leq} L_0 + L_{1:T-1} + L_T$$
-  - $$ L_0 $$: discrete reconstruction
-  - $$ L_{1:T-1} $$: MSE terms
-  - $$ L_T $$: prior
+  - $L_0$: discrete reconstruction
+  - $L_{1:T-1}$: MSE terms
+  - $L_T$: prior
   
   
 
