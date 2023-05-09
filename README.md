@@ -20,6 +20,10 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 
 $$-\log p(x) {\leq} L_0 + L_{1:T-1} + L_T$$
 
+    - $$ L_0 $$: discrete reconstruction
+    - $$ L_{1:T-1} $$: MSE terms
+    - $$ L_T $$: prior
+
 - Information-Theoretic Bound (ours): 
 
 $$-\log p(x) = constant + \frac{1}{2} \int_0^\infty \text{mmse}(x, \gamma) d\gamma$$
