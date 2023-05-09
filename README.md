@@ -18,7 +18,7 @@ $$ \log p(x) = - \frac{1}{2} \int_{0}^{\infty} \text{mmse}(x, \gamma) d\gamma + 
 ## Diffusion Math Comparison
 - Variational Bound: 
 
-$$-\log p(x) \quad {\leq} \underbrace{L_0}_{\substack{\text{discrete}\\ \text{reconstruction}}} + \underbrace{L_{1:T-1}}_{\text{MSE terms}} + \underbrace{L_T}_{\text{prior}}$$
+$$-\log p(x) {\leq} \underbrace{L_0}_{\text{discrete reconstruction}} + \underbrace{L_{1:T-1}}_{\text{MSE terms}} + \underbrace{L_T}_{\text{prior}}$$
 
 - Information-Theoretic Bound (ours): 
 
