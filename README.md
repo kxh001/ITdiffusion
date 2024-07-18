@@ -1,6 +1,7 @@
 # Information-Theoretic Diffusion (ITD)
 
-- Code for the paper [Information-Theoretic Diffusion](https://arxiv.org/abs/2302.03792), published at ICLR 2023. 
+- Code for the paper [Information-Theoretic Diffusion](https://arxiv.org/abs/2302.03792), published at ICLR 2023.
+- Video for the paper: [https://iclr.cc/virtual/2023/poster/10884](https://iclr.cc/virtual/2023/poster/10884) 
 - A [**simplified demonstration**](https://github.com/gregversteeg/InfoDiffusionSimple) is also provided with vivid visualization and examples.
 
 ![dino](./assets/dino.png)
